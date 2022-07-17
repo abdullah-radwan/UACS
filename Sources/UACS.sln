@@ -1,0 +1,52 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31729.503
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "API", "API\API.vcxproj", "{72037F39-DA32-431D-AF5D-C3D7E6A64F4E}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Vessel Astronaut", "Vessels\Astronaut\Astronaut.vcxproj", "{3688ACB1-649F-4199-B5E1-8C4C5D734B98}"
+	ProjectSection(ProjectDependencies) = postProject
+		{72037F39-DA32-431D-AF5D-C3D7E6A64F4E} = {72037F39-DA32-431D-AF5D-C3D7E6A64F4E}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Core", "Core\Core.vcxproj", "{F7151D64-AB49-4373-AA96-9CE4557385BB}"
+	ProjectSection(ProjectDependencies) = postProject
+		{72037F39-DA32-431D-AF5D-C3D7E6A64F4E} = {72037F39-DA32-431D-AF5D-C3D7E6A64F4E}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Vessel Cargo", "Vessels\Cargo\Cargo.vcxproj", "{5ACEAD98-A8BF-421E-BA87-293A25D0B1B7}"
+	ProjectSection(ProjectDependencies) = postProject
+		{72037F39-DA32-431D-AF5D-C3D7E6A64F4E} = {72037F39-DA32-431D-AF5D-C3D7E6A64F4E}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{72037F39-DA32-431D-AF5D-C3D7E6A64F4E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{72037F39-DA32-431D-AF5D-C3D7E6A64F4E}.Debug|Win32.Build.0 = Debug|Win32
+		{72037F39-DA32-431D-AF5D-C3D7E6A64F4E}.Release|Win32.ActiveCfg = Release|Win32
+		{72037F39-DA32-431D-AF5D-C3D7E6A64F4E}.Release|Win32.Build.0 = Release|Win32
+		{3688ACB1-649F-4199-B5E1-8C4C5D734B98}.Debug|Win32.ActiveCfg = Debug|Win32
+		{3688ACB1-649F-4199-B5E1-8C4C5D734B98}.Debug|Win32.Build.0 = Debug|Win32
+		{3688ACB1-649F-4199-B5E1-8C4C5D734B98}.Release|Win32.ActiveCfg = Release|Win32
+		{3688ACB1-649F-4199-B5E1-8C4C5D734B98}.Release|Win32.Build.0 = Release|Win32
+		{F7151D64-AB49-4373-AA96-9CE4557385BB}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F7151D64-AB49-4373-AA96-9CE4557385BB}.Debug|Win32.Build.0 = Debug|Win32
+		{F7151D64-AB49-4373-AA96-9CE4557385BB}.Release|Win32.ActiveCfg = Release|Win32
+		{F7151D64-AB49-4373-AA96-9CE4557385BB}.Release|Win32.Build.0 = Release|Win32
+		{5ACEAD98-A8BF-421E-BA87-293A25D0B1B7}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5ACEAD98-A8BF-421E-BA87-293A25D0B1B7}.Debug|Win32.Build.0 = Debug|Win32
+		{5ACEAD98-A8BF-421E-BA87-293A25D0B1B7}.Release|Win32.ActiveCfg = Release|Win32
+		{5ACEAD98-A8BF-421E-BA87-293A25D0B1B7}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F968477D-1A50-42AF-9B5C-84EF484A97D7}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Astronaut">
+      <UniqueIdentifier>{7f663e28-317c-4daf-a664-2c3a3f10d143}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Cargo">
+      <UniqueIdentifier>{ad0a307c-e298-4026-8e3f-6d267b2a4343}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Vessel">
+      <UniqueIdentifier>{e6efb502-8428-409e-be42-ff63b7617f5a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Astronaut.h">
+      <Filter>Astronaut</Filter>
+    </ClInclude>
+    <ClInclude Include="AstronautImpl.h">
+      <Filter>Astronaut</Filter>
+    </ClInclude>
+    <ClInclude Include="Cargo.h">
+      <Filter>Cargo</Filter>
+    </ClInclude>
+    <ClInclude Include="CargoImpl.h">
+      <Filter>Cargo</Filter>
+    </ClInclude>
+    <ClInclude Include="Common.h" />
+    <ClInclude Include="Vessel.h">
+      <Filter>Vessel</Filter>
+    </ClInclude>
+    <ClInclude Include="VesselImpl.h">
+      <Filter>Vessel</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="AstronautImpl.cpp">
+      <Filter>Astronaut</Filter>
+    </ClCompile>
+    <ClCompile Include="CargoImpl.cpp">
+      <Filter>Cargo</Filter>
+    </ClCompile>
+    <ClCompile Include="VesselImpl.cpp">
+      <Filter>Vessel</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
