@@ -117,4 +117,23 @@ CargoTableChairs1:UACS\Cargoes\TableChairs
   AFCMODE 7
   UNPACKED 1
 END
+AstronautRadwan1:UACS\Astronauts\Astronaut
+  STATUS Landed Moon
+  POS -16.4524890 22.1021480
+  HEADING 210.24
+  ALT 1.228
+  AROT -125.692 -9.738 115.635
+  RCSMODE 0
+  AFCMODE 7
+  PRPLEVEL 0:1.000000 1:0.999008
+  NAVFREQ 0 0
+  NAME Abdullah Radwan
+  ROLE Commander
+  MESH UACS\Astronaut
+  MASS 70.000000
+  ALIVE 1
+  SUIT_ON 1
+  HUD_MODE 1
+  HEADLIGHT 1
+END
 END_SHIPS
