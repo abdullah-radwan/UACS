@@ -34,7 +34,7 @@ namespace UACS
 
 			double GetTotalCargoMass() override;
 
-			int GetAvailableCargoCount() override;
+			size_t GetAvailableCargoCount() override;
 
 			std::string_view GetAvailableCargoName(size_t) override;
 

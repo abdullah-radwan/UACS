@@ -375,7 +375,7 @@ namespace UACS
 				switch (key)
 				{
 				case OAPI_KEY_RIGHT:
-					int(hudInfo.availIdx + 1) < pVslAPI->GetAvailableCargoCount() ? ++hudInfo.availIdx : hudInfo.availIdx = 0;
+					hudInfo.availIdx + 1 < pVslAPI->GetAvailableCargoCount() ? ++hudInfo.availIdx : hudInfo.availIdx = 0;
 					return 1;
 
 				case OAPI_KEY_LEFT:
@@ -386,15 +386,15 @@ namespace UACS
 					switch (pVslAPI->AddCargo(hudInfo.availIdx))
 					{
 					case API::GRPL_SUCCED:
-						hudInfo.modeMsg = "The selected cargo was added successfully.";
+						hudInfo.modeMsg = "Success: Selected available cargo added.";
 						break;
 
 					case API::GRPL_SLT_OCCP:
-						hudInfo.modeMsg = "Couldn't add the selected cargo: You're already holding a cargo!";
+						hudInfo.modeMsg = "Error: A cargo is already grappled.";
 						break;
 
 					case API::GRPL_FAIL:
-						hudInfo.modeMsg = "Couldn't add the selected cargo.";
+						hudInfo.modeMsg = "Error: Addition failed.";
 						break;
 					}
 
@@ -405,15 +405,15 @@ namespace UACS
 					switch (pVslAPI->DeleteCargo())
 					{
 					case API::RLES_SUCCED:
-						hudInfo.modeMsg = "The grappled cargo was deleted successfully.";
+						hudInfo.modeMsg = "Success: Grappled cargo deleted.";
 						break;
 
 					case API::RLES_SLT_EMPTY:
-						hudInfo.modeMsg = "Couldn't delete cargo: There is nothing to delete!";
+						hudInfo.modeMsg = "Error: No cargo grappled.";
 						break;
 
 					case API::RLES_FAIL:
-						hudInfo.modeMsg = "Couldn't delete cargo.";
+						hudInfo.modeMsg = "Error: Deletion failed.";
 						break;
 					}
 
@@ -424,21 +424,21 @@ namespace UACS
 					switch (pVslAPI->GrappleCargo(hCargo))
 					{
 					case API::GRPL_SUCCED:
-						if (hCargo) hudInfo.modeMsg = "The selected cargo was grappled successfully.";
-						else hudInfo.modeMsg = "The nearest cargo was grappled successfully.";
+						if (hCargo) hudInfo.modeMsg = "Success: Selected cargo grappled.";
+						else hudInfo.modeMsg = "Success: Nearest cargo grappled.";
 						break;
 
 					case API::GRPL_SLT_OCCP:
-						hudInfo.modeMsg = "Couldn't grapple cargo: You're already holding a cargo!";
+						hudInfo.modeMsg = "Error: A cargo is already grappled.";
 						break;
 
 					case API::GRPL_NOT_IN_RNG:
-						if (hCargo) hudInfo.modeMsg = "Couldn't grapple cargo: The selected cargo is too far away.";
-						else hudInfo.modeMsg = "Couldn't grapple cargo: No cargo in range.";
+						if (hCargo) hudInfo.modeMsg = "Error: Selected cargo out of range.";
+						else hudInfo.modeMsg = "Error: No cargo in range.";
 						break;
 
 					case API::GRPL_FAIL:
-						hudInfo.modeMsg = "Couldn't grapple cargo.";
+						hudInfo.modeMsg = "Error: Grapple failed.";
 						break;
 					}
 
@@ -449,19 +449,19 @@ namespace UACS
 					switch (pVslAPI->ReleaseCargo())
 					{
 					case API::RLES_SUCCED:
-						hudInfo.modeMsg = "The grappled cargo was released successfully.";
+						hudInfo.modeMsg = "Success: Grappled cargo released.";
 						break;
 
 					case API::RLES_SLT_EMPTY:
-						hudInfo.modeMsg = "Couldn't release cargo: There is nothing to release!";
+						hudInfo.modeMsg = "Error: No cargo grappled";
 						break;
 
 					case API::RLES_NO_EMPTY_POS:
-						hudInfo.modeMsg = "Couldn't release cargo: No empty position nearby.";
+						hudInfo.modeMsg = "Error: No empty position nearby.";
 						break;
 
 					case API::RLES_FAIL:
-						hudInfo.modeMsg = "Couldn't release cargo.";
+						hudInfo.modeMsg = "Error: Release failed.";
 						break;
 					}
 
@@ -472,25 +472,25 @@ namespace UACS
 					switch (pVslAPI->PackCargo(hCargo))
 					{
 					case API::PACK_SUCCED:
-						if (hCargo) hudInfo.modeMsg = "The selected cargo was packed successfully.";
-						else hudInfo.modeMsg = "The nearest cargo was packed successfully.";
+						if (hCargo) hudInfo.modeMsg = "Success: Selected cargo packed.";
+						else hudInfo.modeMsg = "Success: Nearest cargo packed.";
 						break;
 
 					case API::PACK_NOT_IN_RNG:
-						if (hCargo) hudInfo.modeMsg = "Couldn't pack cargo: The selected cargo is too far away.";
-						else hudInfo.modeMsg = "Couldn't pack cargo: No packable cargo in range.";
+						if (hCargo) hudInfo.modeMsg = "Error: Selected cargo out of range.";
+						else hudInfo.modeMsg = "Error: No packable cargo in range.";
 						break;
 
 					case API::PACK_CRG_PCKD:
-						hudInfo.modeMsg = "Couldn't pack cargo: The cargo is already packed.";
+						hudInfo.modeMsg = "Error: Selected cargo already packed.";
 						break;
 
 					case API::PACK_CRG_NOT_PCKABL:
-						hudInfo.modeMsg = "Couldn't pack cargo: The cargo isn't packable.";
+						hudInfo.modeMsg = "Error: Selected cargo not packable.";
 						break;
 
 					case API::PACK_FAIL:
-						hudInfo.modeMsg = "Couldn't pack cargo.";
+						hudInfo.modeMsg = "Error: Packing failed.";
 						break;
 					}
 
@@ -501,25 +501,25 @@ namespace UACS
 					switch (pVslAPI->UnpackCargo(hCargo))
 					{
 					case API::PACK_SUCCED:
-						if (hCargo) hudInfo.modeMsg = "The selected cargo was unpacked successfully.";
-						else hudInfo.modeMsg = "The nearest cargo was unpacked successfully.";
+						if (hCargo) hudInfo.modeMsg = "Success: Selected cargo unpacked.";
+						else hudInfo.modeMsg = "Success: Nearest cargo unpacked.";
 						break;
 
 					case API::PACK_NOT_IN_RNG:
-						if (hCargo) hudInfo.modeMsg = "Couldn't unpack cargo: The selected cargo is too far away.";
-						else hudInfo.modeMsg = "Couldn't unpack cargo: No unpackable cargo in range.";
+						if (hCargo) hudInfo.modeMsg = "Error: Selected cargo out of range.";
+						else hudInfo.modeMsg = "Error: No unpackable cargo in range.";
 						break;
 
 					case API::PACK_CRG_UNPCKD:
-						hudInfo.modeMsg = "Couldn't unpack cargo: The cargo is already unpacked.";
+						hudInfo.modeMsg = "Error: Selected cargo already unpacked.";
 						break;
 
 					case API::PACK_CRG_NOT_PCKABL:
-						hudInfo.modeMsg = "Couldn't unpack cargo: The cargo isn't unpackable.";
+						hudInfo.modeMsg = "Error: Selected cargo not unpackable.";
 						break;
 
 					case API::PACK_FAIL:
-						hudInfo.modeMsg = "Couldn't unpack cargo.";
+						hudInfo.modeMsg = "Error: Unpacking failed.";
 						break;
 					}
 
@@ -546,28 +546,28 @@ namespace UACS
 							if (hudInfo.drainFuel) SetPropellantMass(hFuel, GetPropellantMass(hFuel) + drainInfo.mass);
 							else SetPropellantMass(hOxy, astrInfo.oxyLvl + drainInfo.mass);
 
-							hudInfo.modeMsg = std::format("{:g} kg of {} was drained.", drainInfo.mass, resource);
+							hudInfo.modeMsg = std::format("Success: {:g} kg {} drained.", drainInfo.mass, resource);
 							break;
 
 						case UACS::API::DRIN_NOT_IN_RNG:
-							if (hCargo) hudInfo.modeMsg = "Couldn't drain resource: The selected cargo is too far away.";
-							else hudInfo.modeMsg = "Couldn't drain resource: No resource cargo in range.";
+							if (hCargo) hudInfo.modeMsg = "Error: Selected cargo out of range.";
+							else hudInfo.modeMsg = "Error: No resource cargo in range.";
 							break;
 
 						case UACS::API::DRIN_NOT_RES:
-							hudInfo.modeMsg = "Couldn't drain resource: The selected cargo isn't a resource.";
+							hudInfo.modeMsg = "Error: Selected cargo not a resource.";
 							break;
 
 						case UACS::API::DRIN_RES_NOMATCH:
-							hudInfo.modeMsg = "Couldn't drain resource: The selected cargo resource doesn't match.";
+							hudInfo.modeMsg = "Error: Selected cargo resource doesn't match.";
 							break;
 
 						case UACS::API::DRIN_FAIL:
-							hudInfo.modeMsg = "Couldn't drain resource.";
+							hudInfo.modeMsg = "Error: Drainage failed.";
 							break;
 						}
 					}
-					else hudInfo.modeMsg = "Couldn't drain resource: The selected resource is already full!";
+					else hudInfo.modeMsg = "Error: Selected resource full.";
 
 					hudInfo.modeTimer = 0;
 					return 1;
@@ -587,14 +587,13 @@ namespace UACS
 			case OAPI_KEY_S:
 				if (pVslAPI->GetCargoInfoBySlot(0))
 				{
-					if (suitOn) hudInfo.message = "Couldn't remove suit: You're holding a cargo.";
-					else hudInfo.message = "Couldn't wear suit: You're holding a cargo.";
+					hudInfo.message = "Error: A cargo is grappled.";
 					hudInfo.timer = 0;
 				}
 
 				else if (!astrInfo.oxyLvl && !suitOn)
 				{
-					hudInfo.message = "Couldn't wear suit: No oxygen available.";
+					hudInfo.message = "Error: No oxygen available.";
 					hudInfo.timer = 0;
 				}
 
@@ -603,7 +602,7 @@ namespace UACS
 				return 1;
 
 			case OAPI_KEY_H:
-				hudInfo.mode < 3 ? ++hudInfo.mode : hudInfo.mode = 0;
+				hudInfo.mode < 5 ? ++hudInfo.mode : hudInfo.mode = 0;
 
 				hudInfo.vslIdx = 0;
 				hudInfo.hVessel = nullptr;
@@ -612,9 +611,11 @@ namespace UACS
 
 			case OAPI_KEY_I:
 			{
+				if (hudInfo.mode != HUD_NEAREST && hudInfo.mode != HUD_VESSEL) return 0;
+
 				if (pVslAPI->GetCargoInfoBySlot(0))
 				{
-					hudInfo.message = "Couldn't ingress: You're holding a cargo.";
+					hudInfo.message = "Error: A cargo is grappled.";
 					hudInfo.timer = 0;
 					return 1;
 				}
@@ -632,28 +633,28 @@ namespace UACS
 					return 1;
 
 				case API::INGRS_NOT_IN_RNG:
-					if (selected) hudInfo.message = "Couldn't ingress: The selected airlock is too far away.";
-					else hudInfo.message = "Couldn't ingress: No airlock in range.";
+					if (selected) hudInfo.message = "Error: Selected airlock out of range.";
+					else hudInfo.message = "Error: No airlock in range.";
 					break;
 
 				case API::INGRS_ARLCK_UNDEF:
-					hudInfo.message = "Couldn't ingress: The selected vessel has no airlocks.";
+					hudInfo.message = "Error: Selected vessel has no airlocks.";
 					break;
 
 				case API::INGRS_ARLCK_CLSD:
-					hudInfo.message = "Couldn't ingress: The selected airlock is closed.";
+					hudInfo.message = "Error: Selected airlock closed.";
 					break;
 
 				case API::INGRS_STN_UNDEF:
-					hudInfo.message = "Couldn't ingress: The selected vessel has no stations.";
+					hudInfo.message = "Error: Selected vessel has no stations.";
 					break;
 
 				case API::INGRS_STN_OCCP:
-					hudInfo.message = "Couldn't ingress: The selected station is occupied.";
+					hudInfo.message = "Error: Selected station occupied.";
 					break;
 
 				case API::INGRS_FAIL:
-					hudInfo.message = "Couldn't ingress.";
+					hudInfo.message = "Error: Ingress failed.";
 					break;
 				}
 
@@ -782,6 +783,14 @@ namespace UACS
 
 			case HUD_CARGO:
 				DrawCargoHUD(x, y, hps, skp);
+				break;
+
+			case HUD_SHORT1:
+				DrawShort1HUD(x, y, hps, skp);
+				break;
+
+			case HUD_SHORT2:
+				DrawShort2HUD(x, y, hps, skp);
 				break;
 			}
 
@@ -998,10 +1007,10 @@ namespace UACS
 
 			if (!showMessage) return temp > 223 && temp < 373 && pressure > 3.6e4 && pressure < 2.5e5;
 
-			if (pressure < 3.6e4) hudInfo.message = "Can't remove suit, pressure is too low";
-			else if (pressure > 2.5e5) hudInfo.message = "Can't remove suit, pressure is too high";
-			else if (temp < 223) hudInfo.message = "Can't remove suit, temperature is too low";
-			else if (temp > 373) hudInfo.message = "Can't remove suit, temperature is too high";
+			if (pressure < 3.6e4) hudInfo.message = "Error: Outside pressure low.";
+			else if (pressure > 2.5e5) hudInfo.message = "Error: Outside pressure high.";
+			else if (temp < 223) hudInfo.message = "Error: Outside temperature low.";
+			else if (temp > 373) hudInfo.message = "Error: Outside temperature high.";
 			else return true;
 
 			hudInfo.timer = 0;
@@ -1019,7 +1028,7 @@ namespace UACS
 			astrInfo.alive = false;
 		}
 
-		void Astronaut::DrawNearestHUD(int& x, int& y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp)
+		void Astronaut::DrawNearestHUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp)
 		{
 			skp->Text(x, y, "Nearest airlock information", 27);
 
@@ -1053,7 +1062,7 @@ namespace UACS
 			{
 				const auto& stationInfo = hudInfo.vslInfo.info->stations.at(hudInfo.vslInfo.statIdx);
 
-				buffer = std::format("Seleceted station name: {}, {}", stationInfo.name.c_str(), stationInfo.astrInfo ? "occupied" : "empty");
+				buffer = std::format("Selected station name: {}, {}", stationInfo.name.c_str(), stationInfo.astrInfo ? "occupied" : "empty");
 				skp->Text(x, y, buffer.c_str(), buffer.size());
 
 				y += 30;
@@ -1067,9 +1076,8 @@ namespace UACS
 			DrawVesselInfo(x, y, skp, (*nearAirlock).airlockInfo.pos);
 
 		breathLabel:
-			x = hps->W - 5;
+			x = hps->W - 10;
 			y = int(0.215 * hps->H);
-
 			skp->SetTextAlign(oapi::Sketchpad::RIGHT);
 
 			skp->Text(x, y, "Nearest breathable cargo information", 36);
@@ -1090,9 +1098,9 @@ namespace UACS
 			DrawVesselInfo(x, y, skp, relPos);
 		}
 
-		void Astronaut::DrawVesselHUD(int& x, int& y, oapi::Sketchpad* skp)
+		void Astronaut::DrawVesselHUD(int x, int y, oapi::Sketchpad* skp)
 		{
-			skp->Text(x, y, "Target vessel information", 25);
+			skp->Text(x, y, "Vessel information", 18);
 
 			y += 30;
 
@@ -1164,9 +1172,9 @@ namespace UACS
 			DrawVesselInfo(x, y, skp, airlockPos);
 		}
 
-		void Astronaut::DrawCargoHUD(int& x, int& y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp)
+		void Astronaut::DrawCargoHUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp)
 		{
-			skp->Text(x, y, "Target cargo information", 24);
+			skp->Text(x, y, "Cargo information", 17);
 
 			y += 30;
 
@@ -1204,7 +1212,7 @@ namespace UACS
 
 			else skp->Text(x, y, "No cargo in scenario", 20);
 
-			x = hps->W - 5;
+			x = hps->W - 10;
 			y = int(0.215 * hps->H);
 
 			skp->SetTextAlign(oapi::Sketchpad::RIGHT);
@@ -1231,6 +1239,106 @@ namespace UACS
 
 			if (auto cargoInfo = pVslAPI->GetCargoInfoBySlot(0)) DrawCargoInfo(x, y, skp, *cargoInfo, true);
 			else skp->Text(x, y, "No cargo is grappled", 20);
+		}
+
+		void Astronaut::DrawShort1HUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp)
+		{
+			skp->Text(x, y, "General shortcuts", 17);
+			y += 20;
+
+			skp->Text(x, y, "Shift + H: Change HUD mode", 26);
+			y += 20;
+
+			skp->Text(x, y, "Shift + S: Toggle suit", 22);
+			y += 20;
+
+			skp->Text(x, y, "Shift + L: Toggle Headlight", 27);
+
+			x = hps->W - 10;
+			y = int(0.215 * hps->H);
+			skp->SetTextAlign(oapi::Sketchpad::RIGHT);
+
+			skp->Text(x, y, "Nearest & Vessel HUD shortcuts", 30);
+			y += 20;
+
+			skp->Text(x, y, "Shift + Right Arrow: Select next station", 40);
+			y += 20;
+
+			skp->Text(x, y, "Shift + Left Arrow: Select previous station", 43);
+			y += 20;
+
+			skp->Text(x, y, "Shift + I: Ingress into nearest station", 39);
+
+			y += 30;
+			skp->Text(x, y, "Vessel information HUD shortcuts", 32);
+			y += 20;
+
+			skp->Text(x, y, "Shift + Up Arrow: Select next vessel", 36);
+			y += 20;
+
+			skp->Text(x, y, "Shift + Down Arrow: Select previous vessel", 42);
+			y += 20;
+
+			skp->Text(x, y, "Shift + A: Select next airlock", 30);
+			y += 20;
+
+			skp->Text(x, y, "Ctrl + Shift + I: Ingress into selected station", 47);
+		}
+
+		void Astronaut::DrawShort2HUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp)
+		{
+			skp->Text(x, y, "Cargo information HUD shortcuts", 31);
+			y += 20;
+
+			skp->Text(x, y, "Shift + Up Arrow: Select next scenario cargo", 44);
+			y += 20;
+
+			skp->Text(x, y, "Shift + Down Arrow: Select previous scenario cargo", 50);
+			y += 20;
+
+			skp->Text(x, y, "Shift + Right Arrow: Select next available cargo", 48);
+			y += 20;
+
+			skp->Text(x, y, "Shift + Left Arrow: Select previous available cargo", 51);
+			y += 20;
+
+			skp->Text(x, y, "Alt + F: Select resource to drain", 33);
+
+			x = hps->W - 10;
+			y = int(0.215 * hps->H);
+			skp->SetTextAlign(oapi::Sketchpad::RIGHT);
+
+			skp->Text(x, y, "Shift + A = Add selected available cargo", 40);
+			y += 20;
+
+			skp->Text(x, y, "Shift + G = Grapple nearest cargo", 33);
+			y += 20;
+
+			skp->Text(x, y, "Ctrl + Shift + G = Grapple selected cargo", 41);
+			y += 20;
+
+			skp->Text(x, y, "Shift + R = Release grappled cargo", 34);
+			y += 20;
+
+			skp->Text(x, y, "Shift + P = Pack nearest cargo", 30);
+			y += 20;
+
+			skp->Text(x, y, "Ctrl + Shift + P = Pack selected cargo", 38);
+			y += 20;
+
+			skp->Text(x, y, "Shift + U = Unpack nearest cargo", 32);
+			y += 20;
+
+			skp->Text(x, y, "Ctrl + Shift + U = Unpack selected cargo", 40);
+			y += 20;
+
+			skp->Text(x, y, "Shift + F = Drain nearest resource", 34);
+			y += 20;
+
+			skp->Text(x, y, "Ctrl + Shift + F = Drain selected resource", 42);
+			y += 20;
+
+			skp->Text(x, y, "Shift + D = Delete grappled cargo", 33);
 		}
 
 		void Astronaut::DrawVesselInfo(int x, int& y, oapi::Sketchpad* skp, VECTOR3 relPos)
@@ -1310,10 +1418,10 @@ namespace UACS
 				break;
 			}
 
-			y += 20;
-
 			if (!cargoInfo.resource.empty())
 			{
+				y += 20;
+
 				buffer = std::format("Resource: {}", cargoInfo.resource.c_str());
 				skp->Text(x, y, buffer.c_str(), buffer.size());
 			}

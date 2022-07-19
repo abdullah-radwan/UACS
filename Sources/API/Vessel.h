@@ -331,7 +331,7 @@ namespace UACS
 			 * It's the number of config files in 'Config\Vessels\UACS\Cargoes'.
 			 * @return The count of cargoes that can be added.
 			*/
-			virtual int GetAvailableCargoCount() = 0;
+			virtual size_t GetAvailableCargoCount() = 0;
 
 			/**
 			 * @brief Gets the name of an available cargo.

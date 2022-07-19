@@ -350,7 +350,7 @@ namespace UACS
 			return totalCargoMass;
 		}
 
-		int VesselImpl::GetAvailableCargoCount() { return availCargoVector.size(); }
+		size_t VesselImpl::GetAvailableCargoCount() { return availCargoVector.size(); }
 
 		std::string_view VesselImpl::GetAvailableCargoName(size_t availIdx) { return availCargoVector.at(availIdx); }
 

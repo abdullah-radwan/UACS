@@ -57,7 +57,7 @@ namespace UACS
 
 		double VesselImpl::GetTotalCargoMass() { return pCoreVessel ? pCoreVessel->GetTotalCargoMass() : 0; }
 
-		int VesselImpl::GetAvailableCargoCount() { return pCoreVessel ? pCoreVessel->GetAvailableCargoCount() : 0; }
+		size_t VesselImpl::GetAvailableCargoCount() { return pCoreVessel ? pCoreVessel->GetAvailableCargoCount() : 0; }
 
 		std::string_view VesselImpl::GetAvailableCargoName(size_t availIdx) { return pCoreVessel ? pCoreVessel->GetAvailableCargoName(availIdx) : std::string_view(); }
 

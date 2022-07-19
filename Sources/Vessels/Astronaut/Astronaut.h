@@ -44,7 +44,7 @@ namespace UACS
 			SpotLight* spotLight1{};
 			SpotLight* spotLight2{};
 
-			enum { HUD_NEAREST = 1, HUD_VESSEL, HUD_CARGO };
+			enum { HUD_NEAREST = 1, HUD_VESSEL, HUD_CARGO, HUD_SHORT1, HUD_SHORT2 };
 
 			struct HudInfo
 			{
@@ -124,9 +124,11 @@ namespace UACS
 			bool InBreathableArea(bool showMessage);
 			void Kill();
 
-			void DrawNearestHUD(int& x, int& y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
-			void DrawVesselHUD(int& x, int& y, oapi::Sketchpad* skp);
-			void DrawCargoHUD(int& x, int& y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
+			void DrawNearestHUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
+			void DrawVesselHUD(int x, int y, oapi::Sketchpad* skp);
+			void DrawCargoHUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
+			void DrawShort1HUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
+			void DrawShort2HUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
 
 			void DrawVesselInfo(int x, int& y, oapi::Sketchpad* skp, VECTOR3 relPos);
 			void DrawCargoInfo(int x, int& y, oapi::Sketchpad* skp, const API::CargoInfo& cargoInfo, bool drawBreathable);
