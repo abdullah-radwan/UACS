@@ -1,6 +1,7 @@
 #pragma once
 #include "..\..\API\Astronaut.h"
 #include "..\..\API\Vessel.h"
+#include <forward_list>
 
 namespace UACS
 {
@@ -29,10 +30,19 @@ namespace UACS
 			bool clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp) override;
 
 		private:
-			API::AstrInfo astrInfo;
-			std::string mesh;
-			PROPELLANT_HANDLE hFuel, hOxy;
+			inline static bool configLoaded{};
+			inline static double suitMass{ 60 };
+			inline static double maxNearestRange{ 60e3 };
+			inline static bool realMode{};
+			static void LoadConfig();
+
+			struct AstrInfo : API::AstrInfo
+			{
+				double height;
+			} astrInfo;
+
 			UINT suitMesh, astrMesh;
+			PROPELLANT_HANDLE hFuel, hOxy;
 
 			std::string buffer;
 			bool keyDown{};
@@ -48,7 +58,7 @@ namespace UACS
 
 			struct HudInfo
 			{
-				int mode = HUD_NONE;
+				size_t mode{ HUD_NONE };
 				oapi::Font* deadFont{};
 
 				std::string message;
@@ -88,28 +98,34 @@ namespace UACS
 
 			double totalRunDist{};
 
-			struct BeaconInfo
+			struct HeadlightInfo
 			{
-				VECTOR3 pos{ 0.1156, -0.0759, 0.1494 };
-				VECTOR3 color{ 1,1,1 };
-				BEACONLIGHTSPEC spec{ BEACONSHAPE_DIFFUSE, &pos, &color, 0.02, 0.2, 0, 0, 0, false };
-			} beacon1Info, beacon2Info;
+				struct
+				{
+					VECTOR3 pos;
+					VECTOR3 color{ 1,1,1 };
+					BEACONLIGHTSPEC spec{ BEACONSHAPE_DIFFUSE, &pos, &color, 0.02, 0.2, 0, 0, 0, false };
+				} beaconInfo;
 
-			struct SpotStruct
-			{
-				VECTOR3 pos{ 0.1156, -0.0759, 0.1494 };
-				const VECTOR3 dir{ 0, 0, 1 };
-				const double range{ 400 };
-				const double att0{ 0.01 };
-				const double att1{};
-				const double att2{ 0.05 };
-				const double umbra{ 30 * RAD };
-				const double penumbra{ PI05 };
-				const COLOUR4 diffuse{ 1,1,1,0 };
-				const COLOUR4 specular{ 1,1,1,0 };
-				const COLOUR4 ambient{ 0,0,0,0 };
-			} spotInfo;
+				struct
+				{
+					VECTOR3 pos;
+					VECTOR3 dir;
+					const double range{ 400 };
+					const double att0{ 0.01 };
+					const double att1{};
+					const double att2{ 0.05 };
+					const double umbra{ 30 * RAD };
+					const double penumbra{ PI05 };
+					const COLOUR4 diffuse{ 1,1,1,0 };
+					const COLOUR4 specular{ 1,1,1,0 };
+					const COLOUR4 ambient{ 0,0,0,0 };
+				} spotInfo;
 
+				SpotLight* spotLight;
+			}; std::forward_list<HeadlightInfo> headlights;
+
+			void InitPropellant();
 			void SetOxygenConsumption(double simdt);
 			void SetLandedStatus();
 			void SetSurfaceRef();

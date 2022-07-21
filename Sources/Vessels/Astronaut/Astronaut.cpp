@@ -14,12 +14,7 @@ namespace UACS
 {
 	namespace Vessel
 	{
-		bool configLoaded{};
-		double suitMass{ 60 };
-		double maxNearestRange{ 60e3 };
-		bool realMode{};
-
-		void LoadConfig()
+		void Astronaut::LoadConfig()
 		{
 			configLoaded = true;
 
@@ -78,125 +73,39 @@ namespace UACS
 			if (!oapiReadItem_string(cfg, "Role", cBuffer)) WarnAndTerminate("role", GetClassNameA(), "astronaut");
 			astrInfo.role = cBuffer;
 
+			if (!oapiReadItem_string(cfg, "SuitMesh", cBuffer)) WarnAndTerminate("suit mesh", GetClassNameA(), "astronaut");
+			suitMesh = AddMesh(cBuffer);
+
 			if (!oapiReadItem_string(cfg, "Mesh", cBuffer)) WarnAndTerminate("mesh", GetClassNameA(), "astronaut");
-			mesh = cBuffer;
+			astrMesh = AddMesh(cBuffer);
 
 			if (!oapiReadItem_float(cfg, "Mass", astrInfo.mass)) WarnAndTerminate("mass", GetClassNameA(), "astronaut");
 
-			SetEmptyMass(suitMass + astrInfo.mass);
+			if (!oapiReadItem_float(cfg, "Height", astrInfo.height)) WarnAndTerminate("height", GetClassNameA(), "astronaut");
 
-			SetSize(2);
+			for (size_t index{ 1 }; ; ++index)
+			{
+				VECTOR3 pos, dir;
+				if (!oapiReadItem_vec(cfg, std::format("Headlight{}Pos", index).data(), pos) || !oapiReadItem_vec(cfg, std::format("Headlight{}Dir", index).data(), dir)) break;
 
-			SetCrossSections({ 0.76, 0.44, 0.96 });
+				HeadlightInfo& hlInfo = headlights.emplace_front();
+				hlInfo.spotInfo.pos = hlInfo.beaconInfo.pos = pos;
+				hlInfo.spotInfo.dir = dir;
 
-			SetPMI({ 0.27, 0.07, 0.27 });
+				AddBeacon(&hlInfo.beaconInfo.spec);
 
-			SetCameraOffset({ 0, 0.4905, 0.075 });
+				hlInfo.spotLight = static_cast<SpotLight*>(AddSpotLight(hlInfo.spotInfo.pos, hlInfo.spotInfo.dir, hlInfo.spotInfo.range,
+					hlInfo.spotInfo.att0, hlInfo.spotInfo.att1, hlInfo.spotInfo.att2, hlInfo.spotInfo.umbra, hlInfo.spotInfo.penumbra,
+					hlInfo.spotInfo.diffuse, hlInfo.spotInfo.specular, hlInfo.spotInfo.ambient));
 
-			suitMesh = AddMesh((mesh + "Suit").c_str());
-			astrMesh = AddMesh(mesh.c_str());
+				hlInfo.spotLight->Activate(false);
+			}
 
-			AddBeacon(&beacon1Info.spec);
-
-			beacon2Info.pos.x = -beacon1Info.pos.x;
-
-			AddBeacon(&beacon2Info.spec);
-
-			spotLight1 = static_cast<SpotLight*>(AddSpotLight(spotInfo.pos, spotInfo.dir, spotInfo.range,
-				spotInfo.att0, spotInfo.att1, spotInfo.att2, spotInfo.umbra, spotInfo.penumbra,
-				spotInfo.diffuse, spotInfo.specular, spotInfo.ambient));
-
-			spotInfo.pos.x = -spotInfo.pos.x;
-
-			spotLight2 = static_cast<SpotLight*>(AddSpotLight(spotInfo.pos, spotInfo.dir, spotInfo.range,
-				spotInfo.att0, spotInfo.att1, spotInfo.att2, spotInfo.umbra, spotInfo.penumbra,
-				spotInfo.diffuse, spotInfo.specular, spotInfo.ambient));
-
-			spotLight1->Activate(false);
-			spotLight2->Activate(false);
-
-			cargoInfo.slots.push_back({ CreateAttachment(false, { 0, -0.45, 1.05 }, { 0, -1, 0 }, { 0, 0, -1 }, "UACS"), true });
-
-			hFuel = CreatePropellantResource(10);
-			hOxy = CreatePropellantResource(1);
-
-			THRUSTER_HANDLE thRCS[14], thGroup[4];
-
-			thRCS[0] = CreateThruster(_V(1.23, 0, 1.23), _V(0, 1, 0), 1, hFuel, 1e3);
-			thRCS[1] = CreateThruster(_V(1.23, 0, 1.23), _V(0, -1, 0), 1, hFuel, 1e3);
-			thRCS[2] = CreateThruster(_V(-1.23, 0, 1.23), _V(0, 1, 0), 1, hFuel, 1e3);
-			thRCS[3] = CreateThruster(_V(-1.23, 0, 1.23), _V(0, -1, 0), 1, hFuel, 1e3);
-			thRCS[4] = CreateThruster(_V(1.23, 0, -1.23), _V(0, 1, 0), 1, hFuel, 1e3);
-			thRCS[5] = CreateThruster(_V(1.23, 0, -1.23), _V(0, -1, 0), 1, hFuel, 1e3);
-			thRCS[6] = CreateThruster(_V(-1.23, 0, -1.23), _V(0, 1, 0), 1, hFuel, 1e3);
-			thRCS[7] = CreateThruster(_V(-1.23, 0, -1.23), _V(0, -1, 0), 1, hFuel, 1e3);
-			thRCS[8] = CreateThruster(_V(1.23, 0, 1.23), _V(-1, 0, 0), 1, hFuel, 1e3);
-			thRCS[9] = CreateThruster(_V(-1.23, 0, 1.23), _V(1, 0, 0), 1, hFuel, 1e3);
-			thRCS[10] = CreateThruster(_V(1.23, 0, -1.23), _V(-1, 0, 0), 1, hFuel, 1e3);
-			thRCS[11] = CreateThruster(_V(-1.23, 0, -1.23), _V(1, 0, 0), 1, hFuel, 1e3);
-			thRCS[12] = CreateThruster(_V(0, 0, -1.23), _V(0, 0, 1), 1, hFuel, 1e3);
-			thRCS[13] = CreateThruster(_V(0, 0, 1.23), _V(0, 0, -1), 1, hFuel, 1e3);
-
-			thGroup[0] = thRCS[0];
-			thGroup[1] = thRCS[2];
-			thGroup[2] = thRCS[5];
-			thGroup[3] = thRCS[7];
-			CreateThrusterGroup(thGroup, 4, THGROUP_ATT_PITCHUP);
-
-			thGroup[0] = thRCS[1];
-			thGroup[1] = thRCS[3];
-			thGroup[2] = thRCS[4];
-			thGroup[3] = thRCS[6];
-			CreateThrusterGroup(thGroup, 4, THGROUP_ATT_PITCHDOWN);
-
-			thGroup[0] = thRCS[0];
-			thGroup[1] = thRCS[4];
-			thGroup[2] = thRCS[3];
-			thGroup[3] = thRCS[7];
-			CreateThrusterGroup(thGroup, 4, THGROUP_ATT_BANKLEFT);
-
-			thGroup[0] = thRCS[1];
-			thGroup[1] = thRCS[5];
-			thGroup[2] = thRCS[2];
-			thGroup[3] = thRCS[6];
-			CreateThrusterGroup(thGroup, 4, THGROUP_ATT_BANKRIGHT);
-
-			thGroup[0] = thRCS[0];
-			thGroup[1] = thRCS[4];
-			thGroup[2] = thRCS[2];
-			thGroup[3] = thRCS[6];
-			CreateThrusterGroup(thGroup, 4, THGROUP_ATT_UP);
-
-			thGroup[0] = thRCS[1];
-			thGroup[1] = thRCS[5];
-			thGroup[2] = thRCS[3];
-			thGroup[3] = thRCS[7];
-			CreateThrusterGroup(thGroup, 4, THGROUP_ATT_DOWN);
-
-			thGroup[0] = thRCS[8];
-			thGroup[1] = thRCS[11];
-			CreateThrusterGroup(thGroup, 2, THGROUP_ATT_YAWLEFT);
-
-			thGroup[0] = thRCS[9];
-			thGroup[1] = thRCS[10];
-			CreateThrusterGroup(thGroup, 2, THGROUP_ATT_YAWRIGHT);
-
-			thGroup[0] = thRCS[8];
-			thGroup[1] = thRCS[10];
-			CreateThrusterGroup(thGroup, 2, THGROUP_ATT_LEFT);
-
-			thGroup[0] = thRCS[9];
-			thGroup[1] = thRCS[11];
-			CreateThrusterGroup(thGroup, 2, THGROUP_ATT_RIGHT);
-
-			CreateThrusterGroup(thRCS + 12, 1, THGROUP_ATT_FORWARD);
-			CreateThrusterGroup(thRCS + 13, 1, THGROUP_ATT_BACK);
-
-			static std::array<TOUCHDOWNVTX, 13> tdvtx
+			std::array<TOUCHDOWNVTX, 13> tdVtx
 			{ {
-			{ { 0,        -1.22799,   0.1858 },   1.3e4, 2.7e3, 3, 3},
-			{ { -0.178,   -1.22799,  -0.1305 },   1.3e4, 2.7e3, 3, 3},
-			{ { 0.178,    -1.22799,  -0.1305 },   1.3e4, 2.7e3, 3, 3},
+			{ { 0,        -astrInfo.height,   0.1858 },   1.3e4, 2.7e3, 3, 3},
+			{ { -0.178,   -astrInfo.height,  -0.1305 },   1.3e4, 2.7e3, 3, 3},
+			{ { 0.178,    -astrInfo.height,  -0.1305 },   1.3e4, 2.7e3, 3, 3},
 
 			{ {-0.203865, -0.047471, -0.455052},  1.3e4, 2.7e3, 3, 3},
 			{ { 0.208315, -0.047471, -0.455052 }, 1.3e4, 2.7e3, 3, 3},
@@ -214,7 +123,7 @@ namespace UACS
 			{ { 0.406829,  0.108122,  0.0914 },   1.3e4, 2.7e3, 3, 3}
 			} };
 
-			SetTouchdownPoints(tdvtx.data(), tdvtx.size());
+			SetTouchdownPoints(tdVtx.data(), tdVtx.size());
 		}
 
 		void Astronaut::clbkLoadStateEx(FILEHANDLE scn, void* status)
@@ -233,8 +142,6 @@ namespace UACS
 
 					else if (data == "ROLE") ss >> astrInfo.role;
 
-					else if (data == "MESH") ss >> mesh;
-
 					else if (data == "MASS") ss >> astrInfo.mass;
 
 					else if (data == "ALIVE") ss >> astrInfo.alive;
@@ -243,7 +150,7 @@ namespace UACS
 
 					else if (data == "HUD_MODE") ss >> hudInfo.mode;
 
-					else if (data == "HEADLIGHT") { bool active; ss >> active; SetHeadlight(active); }
+					else if (!headlights.empty() && data == "HEADLIGHT") { bool active; ss >> active; SetHeadlight(active); }
 
 					else ParseScenarioLineEx(line, status);
 				}
@@ -258,41 +165,47 @@ namespace UACS
 
 			oapiWriteScenario_string(scn, "NAME", astrInfo.name.data());
 			oapiWriteScenario_string(scn, "ROLE", astrInfo.role.data());
-			oapiWriteScenario_string(scn, "MESH", mesh.data());
 			oapiWriteScenario_float(scn, "MASS", astrInfo.mass);
 
 			oapiWriteScenario_int(scn, "ALIVE", astrInfo.alive);
 			oapiWriteScenario_int(scn, "SUIT_ON", suitOn);
 			oapiWriteScenario_int(scn, "HUD_MODE", hudInfo.mode);
-			oapiWriteScenario_int(scn, "HEADLIGHT", beacon1Info.spec.active);
+			if (!headlights.empty()) oapiWriteScenario_int(scn, "HEADLIGHT", headlights.front().beaconInfo.spec.active);
 		}
 
 		void Astronaut::clbkPostCreation()
 		{
 			SetEmptyMass(suitMass + astrInfo.mass);
 
+			InitPropellant();
+
+			cargoInfo.slots.push_back({ GetAttachmentHandle(false, 0) });
+
 			SetSuit(suitOn, false);
 
 			if (!astrInfo.alive) { Kill(); return; }
-
-			astrInfo.fuelLvl = GetPropellantMass(hFuel);
-			astrInfo.oxyLvl = GetPropellantMass(hOxy);
-
-			if (GetFlightStatus()) SetAttitudeMode(RCS_NONE);
 		}
 
 		void Astronaut::clbkSetAstrInfo(const API::AstrInfo& astrInfo)
 		{
-			this->astrInfo = astrInfo;
+			this->astrInfo.name = astrInfo.name;
+			this->astrInfo.role = astrInfo.role;
+			this->astrInfo.mass = astrInfo.mass;
+			this->astrInfo.fuelLvl = astrInfo.fuelLvl;
+			this->astrInfo.oxyLvl = astrInfo.oxyLvl;
+			this->astrInfo.alive = astrInfo.alive;
+			this->astrInfo.className = astrInfo.className;
+			this->astrInfo.customData = astrInfo.customData;
 
 			SetEmptyMass(suitMass + astrInfo.mass);
-			SetPropellantMass(hFuel, astrInfo.fuelLvl * 10);
-			SetPropellantMass(hOxy, astrInfo.oxyLvl);
+			SetPropellantMass(hFuel, astrInfo.fuelLvl * GetPropellantMaxMass(hFuel));
+			SetPropellantMass(hOxy, astrInfo.oxyLvl * GetPropellantMaxMass(hOxy));
 		}
 
 		const API::AstrInfo* Astronaut::clbkGetAstrInfo()
 		{
-			astrInfo.fuelLvl = GetPropellantMass(hFuel) / 10;
+			// Oxygen level is set in SetOxygenConsumption
+			astrInfo.fuelLvl = GetPropellantMass(hFuel) / GetPropellantMaxMass(hFuel);
 
 			return &astrInfo;
 		}
@@ -531,8 +444,8 @@ namespace UACS
 					const char* resource;
 					double reqMass;
 
-					if (hudInfo.drainFuel) { resource = "fuel"; reqMass = 10 - GetPropellantMass(hFuel); }
-					else { resource = "oxygen"; reqMass = 1 - astrInfo.oxyLvl; }
+					if (hudInfo.drainFuel) { resource = "fuel"; reqMass = GetPropellantMaxMass(hFuel) - GetPropellantMass(hFuel); }
+					else { resource = "oxygen"; reqMass = GetPropellantMaxMass(hOxy) - GetPropellantMass(hOxy); }
 
 					if (reqMass)
 					{
@@ -544,7 +457,7 @@ namespace UACS
 						{
 						case UACS::API::DRIN_SUCCED:
 							if (hudInfo.drainFuel) SetPropellantMass(hFuel, GetPropellantMass(hFuel) + drainInfo.mass);
-							else SetPropellantMass(hOxy, astrInfo.oxyLvl + drainInfo.mass);
+							else SetPropellantMass(hOxy, GetPropellantMass(hOxy) + drainInfo.mass);
 
 							hudInfo.modeMsg = std::format("Success: {:g} kg {} drained.", drainInfo.mass, resource);
 							break;
@@ -581,7 +494,7 @@ namespace UACS
 			switch (key)
 			{
 			case OAPI_KEY_L:
-				if (suitOn) SetHeadlight(!beacon1Info.spec.active);
+				if (!headlights.empty() && suitOn) SetHeadlight(!headlights.front().beaconInfo.spec.active);
 				return 1;
 
 			case OAPI_KEY_S:
@@ -717,6 +630,8 @@ namespace UACS
 
 			if (GetFlightStatus())
 			{
+				SetAttitudeMode(RCS_NONE);
+
 				if (surfInfo.ref != GetSurfaceRef()) SetSurfaceRef();
 
 				if (lonSpeed.value || latSpeed.value || steerAngle.value) SetGroundMovement(simdt);
@@ -755,7 +670,7 @@ namespace UACS
 
 			if (suitOn)
 			{
-				const double time = astrInfo.oxyLvl / (consumptionRate * 3600);
+				const double time = GetPropellantMass(hOxy) / (consumptionRate * 3600);
 				const int hours = int(time);
 				const double minutesRemainder = (time - hours) * 60;
 				const int minutes = int(minutesRemainder);
@@ -797,10 +712,89 @@ namespace UACS
 			return true;
 		}
 
+		void Astronaut::InitPropellant()
+		{
+			hFuel = GetPropellantHandleByIndex(0);
+			hOxy = GetPropellantHandleByIndex(1);
+
+			THRUSTER_HANDLE thRCS[14], thGroup[4];
+
+			thRCS[0] = CreateThruster(_V(1.23, 0, 1.23), _V(0, 1, 0), 1, hFuel, 1e3);
+			thRCS[1] = CreateThruster(_V(1.23, 0, 1.23), _V(0, -1, 0), 1, hFuel, 1e3);
+			thRCS[2] = CreateThruster(_V(-1.23, 0, 1.23), _V(0, 1, 0), 1, hFuel, 1e3);
+			thRCS[3] = CreateThruster(_V(-1.23, 0, 1.23), _V(0, -1, 0), 1, hFuel, 1e3);
+			thRCS[4] = CreateThruster(_V(1.23, 0, -1.23), _V(0, 1, 0), 1, hFuel, 1e3);
+			thRCS[5] = CreateThruster(_V(1.23, 0, -1.23), _V(0, -1, 0), 1, hFuel, 1e3);
+			thRCS[6] = CreateThruster(_V(-1.23, 0, -1.23), _V(0, 1, 0), 1, hFuel, 1e3);
+			thRCS[7] = CreateThruster(_V(-1.23, 0, -1.23), _V(0, -1, 0), 1, hFuel, 1e3);
+			thRCS[8] = CreateThruster(_V(1.23, 0, 1.23), _V(-1, 0, 0), 1, hFuel, 1e3);
+			thRCS[9] = CreateThruster(_V(-1.23, 0, 1.23), _V(1, 0, 0), 1, hFuel, 1e3);
+			thRCS[10] = CreateThruster(_V(1.23, 0, -1.23), _V(-1, 0, 0), 1, hFuel, 1e3);
+			thRCS[11] = CreateThruster(_V(-1.23, 0, -1.23), _V(1, 0, 0), 1, hFuel, 1e3);
+			thRCS[12] = CreateThruster(_V(0, 0, -1.23), _V(0, 0, 1), 1, hFuel, 1e3);
+			thRCS[13] = CreateThruster(_V(0, 0, 1.23), _V(0, 0, -1), 1, hFuel, 1e3);
+
+			thGroup[0] = thRCS[0];
+			thGroup[1] = thRCS[2];
+			thGroup[2] = thRCS[5];
+			thGroup[3] = thRCS[7];
+			CreateThrusterGroup(thGroup, 4, THGROUP_ATT_PITCHUP);
+
+			thGroup[0] = thRCS[1];
+			thGroup[1] = thRCS[3];
+			thGroup[2] = thRCS[4];
+			thGroup[3] = thRCS[6];
+			CreateThrusterGroup(thGroup, 4, THGROUP_ATT_PITCHDOWN);
+
+			thGroup[0] = thRCS[0];
+			thGroup[1] = thRCS[4];
+			thGroup[2] = thRCS[3];
+			thGroup[3] = thRCS[7];
+			CreateThrusterGroup(thGroup, 4, THGROUP_ATT_BANKLEFT);
+
+			thGroup[0] = thRCS[1];
+			thGroup[1] = thRCS[5];
+			thGroup[2] = thRCS[2];
+			thGroup[3] = thRCS[6];
+			CreateThrusterGroup(thGroup, 4, THGROUP_ATT_BANKRIGHT);
+
+			thGroup[0] = thRCS[0];
+			thGroup[1] = thRCS[4];
+			thGroup[2] = thRCS[2];
+			thGroup[3] = thRCS[6];
+			CreateThrusterGroup(thGroup, 4, THGROUP_ATT_UP);
+
+			thGroup[0] = thRCS[1];
+			thGroup[1] = thRCS[5];
+			thGroup[2] = thRCS[3];
+			thGroup[3] = thRCS[7];
+			CreateThrusterGroup(thGroup, 4, THGROUP_ATT_DOWN);
+
+			thGroup[0] = thRCS[8];
+			thGroup[1] = thRCS[11];
+			CreateThrusterGroup(thGroup, 2, THGROUP_ATT_YAWLEFT);
+
+			thGroup[0] = thRCS[9];
+			thGroup[1] = thRCS[10];
+			CreateThrusterGroup(thGroup, 2, THGROUP_ATT_YAWRIGHT);
+
+			thGroup[0] = thRCS[8];
+			thGroup[1] = thRCS[10];
+			CreateThrusterGroup(thGroup, 2, THGROUP_ATT_LEFT);
+
+			thGroup[0] = thRCS[9];
+			thGroup[1] = thRCS[11];
+			CreateThrusterGroup(thGroup, 2, THGROUP_ATT_RIGHT);
+
+			CreateThrusterGroup(thRCS + 12, 1, THGROUP_ATT_FORWARD);
+			CreateThrusterGroup(thRCS + 13, 1, THGROUP_ATT_BACK);
+
+			astrInfo.fuelLvl = GetPropellantMass(hFuel) / GetPropellantMaxMass(hFuel);
+			astrInfo.oxyLvl = GetPropellantMass(hOxy) / GetPropellantMaxMass(hOxy);
+		}
+
 		void Astronaut::SetOxygenConsumption(double simdt)
 		{
-			astrInfo.oxyLvl = GetPropellantMass(hOxy);
-
 			if (suitOn)
 			{
 				const double speed = abs(lonSpeed.value) + abs(latSpeed.value) + abs(steerAngle.value) / PI;
@@ -811,9 +805,9 @@ namespace UACS
 
 				consumptionRate += 9.43e-6;
 
-				astrInfo.oxyLvl -= consumptionRate * simdt;
+				double oxyMass = GetPropellantMass(hOxy) - (consumptionRate * simdt);
 
-				if (astrInfo.oxyLvl > 0) SetPropellantMass(hOxy, astrInfo.oxyLvl);
+				if (oxyMass > 0) SetPropellantMass(hOxy, oxyMass);
 				else
 				{
 					SetPropellantMass(hOxy, 0);
@@ -823,6 +817,8 @@ namespace UACS
 				}
 			}
 			else if (!InBreathableArea(false)) Kill();
+
+			astrInfo.oxyLvl = GetPropellantMass(hOxy) / GetPropellantMaxMass(hOxy);
 		}
 
 		void Astronaut::SetLandedStatus()
@@ -836,7 +832,7 @@ namespace UACS
 					VESSELSTATUS2 status = GetVesselStatus(this);
 
 					status.status = 1;
-					SetGroundRotation(status, 1.228);
+					SetGroundRotation(status, astrInfo.height);
 					DefSetStateEx(&status);
 				}
 			}
@@ -894,7 +890,7 @@ namespace UACS
 				lngOffset = lonSpeed.value * simdt * sin(status.surf_hdg);
 				latOffset = lonSpeed.value * simdt * cos(status.surf_hdg);
 
-				if (lonSpeed.value > 1.55)
+				if (realMode && lonSpeed.value > 1.55)
 				{
 					totalRunDist += abs(lonSpeed.value) * simdt;
 					lonSpeed.maxLimit = totalRunDist / ((suitOn ? 20 : 15) * pow(totalRunDist / 100, 1.06));
@@ -911,8 +907,8 @@ namespace UACS
 				latOffset = latSpeed.value * simdt * cos(angle);
 			}
 
-			if (lngOffset || latOffset) SetGroundRotation(status, lngOffset, latOffset, 1.228);
-			else SetGroundRotation(status, 1.228);
+			if (lngOffset || latOffset) SetGroundRotation(status, lngOffset, latOffset, astrInfo.height);
+			else SetGroundRotation(status, astrInfo.height);
 
 			DefSetStateEx(&status);
 		}
@@ -970,16 +966,18 @@ namespace UACS
 
 		void Astronaut::SetHeadlight(bool active)
 		{
-			beacon1Info.spec.active = beacon2Info.spec.active = active;
-			spotLight1->Activate(active);
-			spotLight2->Activate(active);
+			for (auto& hlInfo : headlights)
+			{
+				hlInfo.beaconInfo.spec.active = active;
+				hlInfo.spotLight->Activate(active);
+			}
 		}
 
 		void Astronaut::SetSuit(bool on, bool checkBreath)
 		{
 			if (on)
 			{
-				SetAttachmentParams(cargoInfo.slots.at(0).hAttach, { 0, -0.45, 1.05 }, { 0, -1, 0 }, { 0, 0, -1 });
+				cargoInfo.slots.at(0).hAttach = GetAttachmentHandle(false, 0);
 
 				SetMeshVisibilityMode(suitMesh, MESHVIS_ALWAYS);
 				SetMeshVisibilityMode(astrMesh, MESHVIS_NEVER);
@@ -988,9 +986,9 @@ namespace UACS
 			}
 			else if (!checkBreath || (checkBreath && InBreathableArea(true)))
 			{
-				SetAttachmentParams(cargoInfo.slots.at(0).hAttach, { 0, -0.45, 0.81 }, { 0, -1, 0 }, { 0, 0, -1 });
+				cargoInfo.slots.at(0).hAttach = GetAttachmentHandle(false, 1);
 
-				SetHeadlight(false);
+				if (!headlights.empty()) SetHeadlight(false);
 				SetMeshVisibilityMode(suitMesh, MESHVIS_NEVER);
 				SetMeshVisibilityMode(astrMesh, MESHVIS_ALWAYS);
 
@@ -1020,7 +1018,7 @@ namespace UACS
 
 		void Astronaut::Kill()
 		{
-			SetHeadlight(false);
+			if (!headlights.empty()) SetHeadlight(false);
 
 			DelPropellantResource(hFuel);
 			DelPropellantResource(hOxy);
@@ -1126,7 +1124,7 @@ namespace UACS
 
 			y += 30;
 
-			if (!hudInfo.vslInfo.info->stations.size() || !hudInfo.vslInfo.info->airlocks.size())
+			if (!hudInfo.vslInfo.info || !hudInfo.vslInfo.info->stations.size() || !hudInfo.vslInfo.info->airlocks.size())
 			{
 				VECTOR3 relPos;
 				oapiGetGlobalPos(hudInfo.hVessel, &relPos);
@@ -1135,8 +1133,9 @@ namespace UACS
 
 				y += 30;
 
-				if (!hudInfo.vslInfo.info->stations.size()) skp->Text(x, y, "No station is defined for selected vessel", 41);
-				else if (!hudInfo.vslInfo.info->airlocks.size()) skp->Text(x, y, "No airlock is defined for selected vessel", 41);
+				if (!!hudInfo.vslInfo.info) skp->Text(x, y, "Selected vessel doesn't support UACS", 36);
+				else if (!hudInfo.vslInfo.info->stations.size()) skp->Text(x, y, "No station defined for selected vessel", 38);
+				else if (!hudInfo.vslInfo.info->airlocks.size()) skp->Text(x, y, "No airlock defined for selected vessel", 38);
 
 				return;
 			}
@@ -1252,7 +1251,7 @@ namespace UACS
 			skp->Text(x, y, "Shift + S: Toggle suit", 22);
 			y += 20;
 
-			skp->Text(x, y, "Shift + L: Toggle Headlight", 27);
+			if (!headlights.empty()) skp->Text(x, y, "Shift + L: Toggle Headlight", 27);
 
 			x = hps->W - 10;
 			y = int(0.215 * hps->H);

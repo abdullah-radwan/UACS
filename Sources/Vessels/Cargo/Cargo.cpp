@@ -13,11 +13,7 @@ namespace UACS
 {
 	namespace Vessel
 	{
-		bool configLoaded{};
-		double containerMass = 85;
-		bool enableFocus{};
-
-		void LoadConfig()
+		void Cargo::LoadConfig()
 		{
 			configLoaded = true;
 
@@ -177,9 +173,6 @@ namespace UACS
 					break;
 				}
 				break;
-
-			default:
-				break;
 			}
 		}
 
@@ -193,10 +186,9 @@ namespace UACS
 				if (length(angAcc) < 0.1)
 				{
 					VESSELSTATUS2 status = GetVesselStatus(this);
-
 					status.status = 1;
-					SetGroundRotation(status, abs(unpackFrontPos.y));
 
+					SetGroundRotation(status, abs(unpackFrontPos.y));
 					DefSetStateEx(&status);
 				}
 			}
@@ -365,7 +357,7 @@ namespace UACS
 			double stiffness = 100 * GetMass();
 			double damping = 2 * sqrt(GetMass() * stiffness);
 
-			std::array<TOUCHDOWNVTX, 7> tdvtx
+			std::array<TOUCHDOWNVTX, 7> tdVtx
 			{ {
 			{{ 0, -0.65, 0.65 }, stiffness, damping, 3, 3},
 			{{ -0.65, -0.65, -0.65 }, stiffness, damping, 3, 3},
@@ -376,7 +368,7 @@ namespace UACS
 			{{ 0.65, -0.65, 0.65 }, stiffness, damping, 3, 3}
 			} };
 
-			SetTouchdownPoints(tdvtx.data(), tdvtx.size());
+			SetTouchdownPoints(tdVtx.data(), tdVtx.size());
 
 			// If the cargo was unpacked and it is landed
 			if (init && status.status) { SetGroundRotation(status, 0.65); DefSetStateEx(&status); }
@@ -406,7 +398,7 @@ namespace UACS
 
 			if (unpackFrontPos.z || unpackRightPos.x || unpackLeftPos.x)
 			{
-				std::array<TOUCHDOWNVTX, 4> tdvtx
+				std::array<TOUCHDOWNVTX, 4> tdVtx
 				{ {
 				{ unpackFrontPos, stiffness, damping, 3, 3},
 				{ unpackLeftPos, stiffness, damping, 3, 3},
@@ -414,7 +406,7 @@ namespace UACS
 				{ { 0, unpackSize, 0 }, stiffness, damping, 3, 3}
 				} };
 
-				SetTouchdownPoints(tdvtx.data(), tdvtx.size());
+				SetTouchdownPoints(tdVtx.data(), tdVtx.size());
 			}
 
 			else
@@ -422,7 +414,7 @@ namespace UACS
 				double sizeSin = -sin(30 * RAD) * unpackSize;
 				double sizeCos = cos(30 * RAD) * unpackSize;
 
-				std::array<TOUCHDOWNVTX, 4> tdvtx
+				std::array<TOUCHDOWNVTX, 4> tdVtx
 				{ {
 				{ { sizeCos, -abs(unpackFrontPos.y), sizeSin}, stiffness, damping, 3, 3},
 				{ { 0, -abs(unpackFrontPos.y), unpackSize }, stiffness, damping, 3, 3},
@@ -430,7 +422,7 @@ namespace UACS
 				{ { 0, 15 * unpackSize, 0 }, stiffness, damping, 3, 3}
 				} };
 
-				SetTouchdownPoints(tdvtx.data(), tdvtx.size());
+				SetTouchdownPoints(tdVtx.data(), tdVtx.size());
 			}
 
 			SetCrossSections(unpackCS);

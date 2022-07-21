@@ -127,7 +127,6 @@ AstronautRadwan1:UACS\Astronauts\Astronaut
   NAVFREQ 0 0
   NAME Abdullah Radwan
   ROLE Commander
-  MESH UACS\Astronaut
   MASS 70.000000
   ALIVE 1
   SUIT_ON 1
