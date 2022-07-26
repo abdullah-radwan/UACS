@@ -2,6 +2,11 @@
 #include "Common.h"
 #include <VesselAPI.h>
 
+/**
+ * @file
+ * @brief UACS cargo API header.
+*/
+
 namespace UACS
 {
 	namespace API
@@ -13,7 +18,7 @@ namespace UACS
 		public:
 			/**
 			 * @brief The cargo information struct. This is the information the cargo must pass to UACS.
-			 * On the other hand, API::CargoInfo is used to pass information from UACS to vessels.
+			 * On the other hand, API::CargoInfo is used to pass cargo information from UACS to vessels.
 			*/
 			struct CargoInfo
 			{
@@ -23,39 +28,42 @@ namespace UACS
 				CargoType type;
 
 				/**
-				 * @brief The cargo resource. If the cargo isn't a resource, it should be an empty string.
-				 * @note Use the standard resource names specified in UACS manual for better compatibility with vessels.
-				*/
-				std::string resource{};
-
-				/**
-				 * @brief The cargo unpacking flag. True if unpacked, false if not.
-				 * @note The cargo is responsible for setting the flag correctly (e.g. loading/saving it to scenario, or when clbkPackCargo or clbkUnpackCargo is called, etc.).
+				 * @brief The cargo unpacking flag.
+				 * @note The cargo is responsible for setting the flag correctly
+				 * (e.g. loading/saving it to scenario, or when clbkPackCargo or clbkUnpackCargo is called, etc.).
 				*/
 				bool unpacked{ false };
 
-				/// The front position of the cargo. This is used to properly orient the cargo when released on sloped ground.
+				/**
+				 * @brief The cargo breathablity flag.
+				 * @note If the cargo is breathable, this flag should be true even if the cargo is packed.
+				 * UACS automatically considers the cargo unbreathable if it's packed.
+				*/
+				bool breathable{ false };
+
+				/// Optional: The front position of the cargo. This is used to properly orient the cargo when released on sloped ground.
 				VECTOR3 frontPos{};
 
-				/// The right position of the cargo. This is used to properly orient the cargo when released on sloped ground.
+				/// Optional:The right position of the cargo. This is used to properly orient the cargo when released on sloped ground.
 				VECTOR3 rightPos{};
 
-				/// The left position of the cargo. This is used to properly orient the cargo when released on sloped ground.
+				/// Optional: The left position of the cargo. This is used to properly orient the cargo when released on sloped ground.
 				VECTOR3 leftPos{};
 
 				/**
-				 * @brief The cargo breathablity flag. True if breathable, false if not.
-				 * @note If the cargo is breathable, this flag should be true even if the cargo is packed. UACS automatically considers the cargo as unbreathable if it's packed.
+				 * @brief The cargo resource. If the cargo isn't a resource, it should be a nullopt.
+				 * @note Use the standard resource names specified in UACS manual for better compatibility with vessels.
 				*/
-				bool breathable{ false };
+				std::optional<std::string> resource{};
 			};
 
 			Cargo(OBJHANDLE hVessel, int fModel = 1);
 			virtual ~Cargo();
 
 			/**
-			 * @brief Cargo information callback. Must be implemented by cargoes.
-			 * @return A const pointer to the cargo information struct.
+			 * @brief The cargo information callback. It must be implemented by cargoes.
+			 * @return A const pointer to the CargoInfo struct. The struct must live until the cargo is destroyed.
+			 * Don't pass the address of a temporary variable.
 			*/
 			virtual const CargoInfo* clbkGetCargoInfo() = 0;
 
@@ -79,12 +87,12 @@ namespace UACS
 
 			/**
 			 * @brief For resource cargoes only: Called when the cargo resource is drained. Implement the drainage logic here.
-			 * @return The drained mass, or 0 if the drainge failed.
+			 * @return The drained mass, or 0 if the drainage failed.
 			*/
 			virtual double clbkDrainResource(double mass);
 
 		private:
-			std::unique_ptr<CargoImpl> cargoImpl;
+			std::unique_ptr<CargoImpl> pCargoImpl;
 		};
 	}
 }

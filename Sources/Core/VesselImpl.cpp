@@ -15,9 +15,17 @@ namespace UACS
 {
 	namespace Core
 	{
-		std::vector<std::string> availCargoVector;
+		void VesselImpl::InitAvailAstr()
+		{
+			for (const auto& entry : std::filesystem::recursive_directory_iterator(std::filesystem::current_path().string() + "/Config/Vessels/UACS/Astronauts"))
+			{
+				std::string path = entry.path().filename().string();
 
-		void InitAvailableCargo()
+				availAstrVector.push_back(path.substr(0, path.find(".cfg")));
+			}
+		}
+
+		void VesselImpl::InitAvailCargo()
 		{
 			for (const auto& entry : std::filesystem::recursive_directory_iterator(std::filesystem::current_path().string() + "/Config/Vessels/UACS/Cargoes"))
 			{
@@ -30,12 +38,19 @@ namespace UACS
 		VesselImpl::VesselImpl(VESSEL* pVessel, API::VslAstrInfo* pVslAstrInfo, API::VslCargoInfo* pVslCargoInfo) :
 			pVessel(pVessel), pVslAstrInfo(pVslAstrInfo), pVslCargoInfo(pVslCargoInfo)
 		{
-			if (pVslAstrInfo) vslAstrMap.insert({ pVessel->GetHandle(), pVslAstrInfo });
+			if (pVslAstrInfo)
+			{ 
+				if (availAstrVector.empty()) InitAvailAstr();
 
-			if (pVslCargoInfo && availCargoVector.empty()) InitAvailableCargo();
+				vslAstrMap.insert({ pVessel->GetHandle(), pVslAstrInfo });
+			}
+
+			if (pVslCargoInfo && availCargoVector.empty()) InitAvailCargo();
 		}
 
 		void VesselImpl::Destroy() noexcept { vslAstrMap.erase(pVessel); delete this; }
+
+		std::string_view VesselImpl::GetUACSVersion() { return Core::GetUACSVersion(); }
 
 		bool VesselImpl::ParseScenarioLine(char* line)
 		{
@@ -74,6 +89,11 @@ namespace UACS
 			return false;
 		}
 
+		void VesselImpl::clbkPostCreation()
+		{
+			for (auto& slotInfo : pVslCargoInfo->slots) slotInfo.cargoInfo = GetCargoInfoByHandle(pVessel->GetAttachmentStatus(slotInfo.hAttach));
+		}
+
 		void VesselImpl::SaveState(FILEHANDLE scn)
 		{
 			for (size_t index{}; index < pVslAstrInfo->stations.size(); ++index)
@@ -102,18 +122,58 @@ namespace UACS
 			}
 		}
 
-		const API::AstrInfo* VesselImpl::GetAstrInfo(OBJHANDLE hVessel)
+		size_t VesselImpl::GetScnAstrCount() { return Core::GetScnAstrCount(); }
+
+		std::pair<OBJHANDLE, const API::AstrInfo*> VesselImpl::GetAstrInfoByIndex(size_t astrIdx) { return Core::GetAstrInfoByIndex(astrIdx); }
+
+		const API::AstrInfo* VesselImpl::GetAstrInfoByHandle(OBJHANDLE hAstr) { return Core::GetAstrInfoByHandle(hAstr); }
+
+		const API::VslAstrInfo* VesselImpl::GetVslAstrInfo(OBJHANDLE hVessel) { return Core::GetVslAstrInfo(hVessel); }
+
+		void VesselImpl::SetScnAstrInfoByIndex(size_t astrIdx, API::AstrInfo astrInfo) { Core::SetScnAstrInfoByIndex(astrIdx, astrInfo); }
+
+		bool VesselImpl::SetScnAstrInfoByHandle(OBJHANDLE hAstr, API::AstrInfo astrInfo) { return Core::SetScnAstrInfoByHandle(hAstr, astrInfo); }
+
+		size_t VesselImpl::GetAvailAstrCount() { return availAstrVector.size(); }
+
+		std::string_view VesselImpl::GetAvailAstrName(size_t availIdx) { return availAstrVector.at(availIdx); }
+
+		API::IngressResult VesselImpl::AddAstronaut(size_t availIdx, std::optional<size_t> stationIdx, std::optional<API::AstrInfo> astrInfo)
 		{
-			auto astrIt = std::ranges::find_if(astrVector, [hVessel](API::Astronaut* pAstr) { return pAstr->GetHandle() == hVessel; });
+			if (!stationIdx) stationIdx = GetEmptyStationIndex(pVslAstrInfo->stations);
 
-			return astrIt == astrVector.end() ? nullptr : (*astrIt)->clbkGetAstrInfo();
-		}
+			if (!stationIdx || pVslAstrInfo->stations.at(*stationIdx).astrInfo) return API::INGRS_STN_OCCP;
 
-		const API::VslAstrInfo* VesselImpl::GetVslAstrInfo(OBJHANDLE hVessel)
-		{
-			const auto& vslPair = vslAstrMap.find(hVessel);
+			if (!astrInfo)
+			{
+				astrInfo = API::AstrInfo();
 
-			return vslPair == vslAstrMap.end() ? nullptr : vslPair->second;
+				const std::string_view className = availAstrVector.at(availIdx);
+
+				std::string configFile = std::format("Vessels\\UACS\\Astronauts\\{}.cfg", className);
+
+				FILEHANDLE hConfig = oapiOpenFile(configFile.c_str(), FILE_IN_ZEROONFAIL, CONFIG);
+
+				if (!hConfig) return API::INGRS_FAIL;
+
+				char cBuffer[512];
+
+				if (!oapiReadItem_string(hConfig, "Name", cBuffer)) WarnAndTerminate("name", className.data(), "astronaut");
+				(*astrInfo).name = cBuffer;
+
+				if (!oapiReadItem_string(hConfig, "Role", cBuffer)) WarnAndTerminate("role", className.data(), "astronaut");
+				(*astrInfo).role = cBuffer;
+
+				if (!oapiReadItem_float(hConfig, "Mass", (*astrInfo).mass)) WarnAndTerminate("mass", className.data(), "astronaut");
+
+				oapiCloseFile(hConfig, FILE_IN_ZEROONFAIL);
+			}
+
+			(*astrInfo).className = availAstrVector.at(availIdx);
+
+			pVslAstrInfo->stations.at(*stationIdx).astrInfo = astrInfo;
+
+			return API::INGRS_SUCCED;
 		}
 
 		API::TransferResult VesselImpl::TransferAstronaut(size_t stationIdx, size_t airlockIdx, std::optional<size_t> tgtStationIdx)
@@ -316,62 +376,37 @@ namespace UACS
 			return height;
 		}
 
-		size_t VesselImpl::GetScenarioCargoCount() { return cargoVector.size(); }
+		size_t VesselImpl::GetScnCargoCount() { return cargoVector.size(); }
 
 		API::CargoInfo VesselImpl::GetCargoInfoByIndex(size_t cargoIdx) { return SetCargoInfo(cargoVector.at(cargoIdx)); }
 
-		std::optional<API::CargoInfo> VesselImpl::GetCargoInfoByHandle(OBJHANDLE hVessel)
+		std::optional<API::CargoInfo> VesselImpl::GetCargoInfoByHandle(OBJHANDLE hCargo)
 		{
-			auto cargoIt = std::ranges::find_if(cargoVector, [hVessel](API::Cargo* pCargo) { return pCargo->GetHandle() == hVessel; });
+			auto cargoIt = std::ranges::find_if(cargoVector, [hCargo](API::Cargo* pCargo) { return pCargo->GetHandle() == hCargo; });
 
 			return cargoIt == cargoVector.end() ? std::optional<API::CargoInfo>{} : SetCargoInfo(*cargoIt);
-		}
-
-		std::optional<API::CargoInfo> VesselImpl::GetCargoInfoBySlot(size_t slotIdx)
-		{
-			OBJHANDLE hCargo{ GetSlotCargoHandle(slotIdx) };
-
-			if (!hCargo) return {};
-
-			return SetCargoInfo(static_cast<API::Cargo*>(oapiGetVesselInterface(hCargo)));
 		}
 
 		double VesselImpl::GetTotalCargoMass()
 		{
 			double totalCargoMass{};
 
-			for (const auto& slotInfo : pVslCargoInfo->slots)
-			{
-				OBJHANDLE hCargo = pVessel->GetAttachmentStatus(slotInfo.hAttach);
-
-				if (hCargo) totalCargoMass += oapiGetMass(hCargo);
-			}
+			for (const auto& slotInfo : pVslCargoInfo->slots) totalCargoMass += oapiGetMass((*slotInfo.cargoInfo).handle);
 
 			return totalCargoMass;
 		}
 
-		size_t VesselImpl::GetAvailableCargoCount() { return availCargoVector.size(); }
+		size_t VesselImpl::GetAvailCargoCount() { return availCargoVector.size(); }
 
-		std::string_view VesselImpl::GetAvailableCargoName(size_t availIdx) { return availCargoVector.at(availIdx); }
+		std::string_view VesselImpl::GetAvailCargoName(size_t availIdx) { return availCargoVector.at(availIdx); }
 
 		API::GrappleResult VesselImpl::AddCargo(size_t availIdx, std::optional<size_t> slotIdx)
 		{
-			if (slotIdx)
-			{
-				if (!pVslCargoInfo->slots.at(*slotIdx).open) return API::GRPL_SLT_CLSD;
+			API::SlotInfo& slotInfo = slotIdx ? pVslCargoInfo->slots.at(*slotIdx) : GetEmptySlot(true);
 
-				if (GetSlotCargoHandle(*slotIdx)) return API::GRPL_SLT_OCCP;
-			}
-			else
-			{
-				auto result = GetEmptySlot(true);
+			if (!slotInfo.open) return API::GRPL_SLT_CLSD;
 
-				if (!result) return API::GRPL_SLT_OCCP;
-
-				if (!(*result).open) return API::GRPL_SLT_CLSD;
-
-				slotIdx = (*result).slotIdx;
-			}
+			if (slotInfo.cargoInfo) return API::GRPL_SLT_OCCP;
 
 			const std::string_view cargoName = availCargoVector.at(availIdx);
 
@@ -402,55 +437,39 @@ namespace UACS
 
 			auto pCargo = static_cast<API::Cargo*>(oapiGetVesselInterface(hCargo));
 
-			if (!pVessel->AttachChild(hCargo, pVslCargoInfo->slots.at(*slotIdx).hAttach, pCargo->clbkGetCargoInfo()->hAttach))
+			if (!pVessel->AttachChild(hCargo, slotInfo.hAttach, pCargo->clbkGetCargoInfo()->hAttach))
 			{
 				oapiDeleteVessel(hCargo);
 				return API::GRPL_FAIL;
 			}
+
+			slotInfo.cargoInfo = SetCargoInfo(pCargo);
 
 			return API::GRPL_SUCCED;
 		}
 
 		API::ReleaseResult VesselImpl::DeleteCargo(std::optional<size_t> slotIdx)
 		{
-			OBJHANDLE hCargo;
+			API::SlotInfo& slotInfo = slotIdx ? pVslCargoInfo->slots.at(*slotIdx) : GetOccupiedSlot(false);
 
-			if (slotIdx) hCargo = GetSlotCargoHandle(*slotIdx); 
-			else
-			{
-				auto result = GetOccupiedSlot(false);
+			if (!slotInfo.cargoInfo) return API::RLES_SLT_EMPTY;
 
-				hCargo = result ? (*result).hCargo : nullptr;
-			}
+			if (!oapiDeleteVessel((*slotInfo.cargoInfo).handle)) return API::RLES_FAIL;
 
-			if (!hCargo) return API::RLES_SLT_EMPTY;
-
-			if (!oapiDeleteVessel(hCargo)) return API::RLES_FAIL;
-
+			slotInfo.cargoInfo = {};
 			return API::RLES_SUCCED;
 		}
 
 		API::GrappleResult VesselImpl::GrappleCargo(OBJHANDLE hCargo, std::optional<size_t> slotIdx)
 		{
-			if (slotIdx)
-			{
-				if (!pVslCargoInfo->slots.at(*slotIdx).open) return API::GRPL_SLT_CLSD;
+			API::SlotInfo& slotInfo = slotIdx ? pVslCargoInfo->slots.at(*slotIdx) : GetEmptySlot(true);
 
-				if (GetSlotCargoHandle(*slotIdx)) return API::GRPL_SLT_OCCP;
-			}
-			else
-			{
-				auto result = GetEmptySlot(true);
+			if (!slotInfo.open) return API::GRPL_SLT_CLSD;
 
-				if (!result) return API::GRPL_SLT_OCCP;
-
-				if (!(*result).open) return API::GRPL_SLT_CLSD;
-
-				slotIdx = (*result).slotIdx;
-			}
+			if (slotInfo.cargoInfo) return API::GRPL_SLT_OCCP;			
 
 			VECTOR3 slotPos, slotDir, slotRot;
-			pVessel->GetAttachmentParams(pVslCargoInfo->slots.at(*slotIdx).hAttach, slotPos, slotDir, slotRot);
+			pVessel->GetAttachmentParams(slotInfo.hAttach, slotPos, slotDir, slotRot);
 
 			if (hCargo)
 			{
@@ -472,9 +491,10 @@ namespace UACS
 
 				if (pVslCargoInfo->maxTotalCargoMass && GetTotalCargoMass() + pCargo->GetMass() > *pVslCargoInfo->maxTotalCargoMass) return API::GRPL_MAX_TTLMASS_EXCD;
 
-				if (!pVessel->AttachChild(hCargo, pVslCargoInfo->slots.at(*slotIdx).hAttach, cargoInfo->hAttach)) return API::GRPL_FAIL;
+				if (!pVessel->AttachChild(hCargo, slotInfo.hAttach, cargoInfo->hAttach)) return API::GRPL_FAIL;
 
 				pCargo->clbkCargoGrappled();
+				slotInfo.cargoInfo = SetCargoInfo(pCargo);
 
 				return API::GRPL_SUCCED;
 			}
@@ -508,9 +528,11 @@ namespace UACS
 
 			for (const auto& [distance, pCargo] : cargoMap)
 			{
-				if (pVessel->AttachChild(pCargo->GetHandle(), pVslCargoInfo->slots.at(*slotIdx).hAttach, pCargo->clbkGetCargoInfo()->hAttach))
+				if (pVessel->AttachChild(pCargo->GetHandle(), slotInfo.hAttach, pCargo->clbkGetCargoInfo()->hAttach))
 				{
 					pCargo->clbkCargoGrappled();
+					slotInfo.cargoInfo = SetCargoInfo(pCargo);
+
 					return API::GRPL_SUCCED;
 				}
 			}
@@ -520,37 +542,20 @@ namespace UACS
 
 		API::ReleaseResult VesselImpl::ReleaseCargo(std::optional<size_t> slotIdx)
 		{
-			OBJHANDLE hCargo;
+			API::SlotInfo& slotInfo = slotIdx ? pVslCargoInfo->slots.at(*slotIdx) : GetOccupiedSlot(true);
 
-			if (slotIdx)
-			{
-				if (!pVslCargoInfo->slots.at(*slotIdx).open) return API::RLES_SLT_CLSD;
+			if (!slotInfo.open) return API::RLES_SLT_CLSD;
 
-				hCargo = GetSlotCargoHandle(*slotIdx);
-			}
+			if (!slotInfo.cargoInfo) return API::RLES_SLT_EMPTY;			
 
-			else
-			{
-				auto result = GetOccupiedSlot(true);
-
-				if (!result) return API::RLES_SLT_EMPTY;
-
-				if (!(*result).open) return API::RLES_SLT_CLSD;
-
-				slotIdx = (*result).slotIdx;
-				hCargo = (*result).hCargo;
-			}
-
-			if (!hCargo) return API::RLES_SLT_EMPTY;
-
-			auto pCargo = static_cast<API::Cargo*>(oapiGetVesselInterface(hCargo));
+			auto pCargo = static_cast<API::Cargo*>(oapiGetVesselInterface((*slotInfo.cargoInfo).handle));
 
 			if (pVessel->GetFlightStatus())
 			{
 				VESSELSTATUS2 status = GetVesselStatus(pVessel);
 
 				VECTOR3 relPos, slotDir, slotRot;
-				pVessel->GetAttachmentParams(pVslCargoInfo->slots.at(*slotIdx).hAttach, relPos, slotDir, slotRot);
+				pVessel->GetAttachmentParams(slotInfo.hAttach, relPos, slotDir, slotRot);
 
 				auto cargoInfo = pCargo->clbkGetCargoInfo();
 
@@ -567,13 +572,14 @@ namespace UACS
 
 				else SetGroundRotation(status, relPos.x, relPos.z, abs(cargoInfo->frontPos.y));
 
-				if (!pVessel->DetachChild(pVslCargoInfo->slots.at(*slotIdx).hAttach)) return API::RLES_FAIL;
+				if (!pVessel->DetachChild(slotInfo.hAttach)) return API::RLES_FAIL;
 
 				pCargo->DefSetStateEx(&status);
 			}
-			else if (!pVessel->DetachChild(pVslCargoInfo->slots.at(*slotIdx).hAttach, pVslCargoInfo->relVel)) return API::RLES_FAIL;
+			else if (!pVessel->DetachChild(slotInfo.hAttach, pVslCargoInfo->relVel)) return API::RLES_FAIL;
 
 			pCargo->clbkCargoReleased();
+			slotInfo.cargoInfo = {};
 
 			return API::RLES_SUCCED;
 		}
@@ -593,7 +599,7 @@ namespace UACS
 
 				if (!cargoInfo->unpacked) return API::PACK_CRG_PCKD;
 
-				if (cargoInfo->type != API::PACKABLE_UNPACKABLE) return API::PACK_CRG_NOT_PCKABL;
+				if (cargoInfo->type != API::PACK_UNPACK) return API::PACK_CRG_NOT_PCKABL;
 
 				if (pCargo->GetAttachmentStatus(cargoInfo->hAttach)) return API::PACK_CRG_ATCHD;
 
@@ -615,7 +621,7 @@ namespace UACS
 
 				auto cargoInfo = pCargo->clbkGetCargoInfo();
 
-				if (cargoInfo->unpacked && cargoInfo->type == API::PACKABLE_UNPACKABLE && !pCargo->GetAttachmentStatus(cargoInfo->hAttach)) cargoMap[distance] = pCargo;
+				if (cargoInfo->unpacked && cargoInfo->type == API::PACK_UNPACK && !pCargo->GetAttachmentStatus(cargoInfo->hAttach)) cargoMap[distance] = pCargo;
 			}
 
 			if (cargoMap.empty()) return API::PACK_NOT_IN_RNG;
@@ -642,7 +648,7 @@ namespace UACS
 
 				if (cargoInfo->unpacked) return API::PACK_CRG_UNPCKD;
 
-				if (cargoInfo->type != API::UNPACKABLE_ONLY && cargoInfo->type != API::PACKABLE_UNPACKABLE) return API::PACK_CRG_NOT_PCKABL;
+				if (cargoInfo->type != API::UNPACK_ONLY && cargoInfo->type != API::PACK_UNPACK) return API::PACK_CRG_NOT_PCKABL;
 
 				if (pCargo->GetAttachmentStatus(cargoInfo->hAttach)) return API::PACK_CRG_ATCHD;
 
@@ -664,7 +670,7 @@ namespace UACS
 
 				auto cargoInfo = pCargo->clbkGetCargoInfo();
 
-				if (!cargoInfo->unpacked && (cargoInfo->type == API::UNPACKABLE_ONLY || cargoInfo->type == API::PACKABLE_UNPACKABLE) &&
+				if (!cargoInfo->unpacked && (cargoInfo->type == API::UNPACK_ONLY || cargoInfo->type == API::PACK_UNPACK) &&
 					!pCargo->GetAttachmentStatus(cargoInfo->hAttach)) cargoMap[distance] = pCargo;
 			}
 
@@ -675,19 +681,19 @@ namespace UACS
 			return API::PACK_FAIL;
 		}
 
-		API::DrainInfo VesselImpl::DrainGrappledResource(std::string_view resource, double mass, std::optional<size_t> slotIdx)
+		std::pair<API::DrainResult, double> VesselImpl::DrainGrappledResource(std::string_view resource, double mass, std::optional<size_t> slotIdx)
 		{
-			API::DrainInfo drainInfo;
-			drainInfo.result = API::DRIN_SLT_EMPTY;
-			drainInfo.mass = {};
+			std::pair<API::DrainResult, double> drainInfo;
+			drainInfo.first = API::DRIN_SLT_EMPTY;
+			drainInfo.second = {};
 
 			OBJHANDLE hCargo;
 
 			if (slotIdx)
 			{
-				hCargo = GetSlotCargoHandle(*slotIdx);
+				if (!pVslCargoInfo->slots.at(*slotIdx).cargoInfo) return drainInfo;
 
-				if (!hCargo) return drainInfo;
+				hCargo = (*pVslCargoInfo->slots.at(*slotIdx).cargoInfo).handle;
 
 			drainGrappledLabel:
 
@@ -715,11 +721,11 @@ namespace UACS
 			}
 		}
 
-		API::DrainInfo VesselImpl::DrainUngrappledResource(std::string_view resource, double mass, OBJHANDLE hCargo)
+		std::pair<API::DrainResult, double> VesselImpl::DrainUngrappledResource(std::string_view resource, double mass, OBJHANDLE hCargo)
 		{
-			API::DrainInfo drainInfo;
-			drainInfo.result = API::DRIN_NOT_IN_RNG;
-			drainInfo.mass = {};
+			std::pair<API::DrainResult, double> drainInfo;
+			drainInfo.first = API::DRIN_NOT_IN_RNG;
+			drainInfo.second = {};
 
 			if (hCargo)
 			{
@@ -735,12 +741,12 @@ namespace UACS
 
 				auto cargoInfo = pCargo->clbkGetCargoInfo();
 
-				if (cargoInfo->resource.empty()) { drainInfo.result = API::DRIN_NOT_RES; return drainInfo; }
+				if (!cargoInfo->resource) { drainInfo.first = API::DRIN_NOT_RES; return drainInfo; }
 
-				if (cargoInfo->resource != resource) { drainInfo.result = API::DRIN_RES_NOMATCH; return drainInfo; }
+				if (cargoInfo->resource != resource) { drainInfo.first = API::DRIN_RES_NOMATCH; return drainInfo; }
 
-				drainInfo.result = API::DRIN_SUCCED;
-				drainInfo.mass = pCargo->clbkDrainResource(mass);
+				drainInfo.first = API::DRIN_SUCCED;
+				drainInfo.second = pCargo->clbkDrainResource(mass);
 			}
 
 			else
@@ -749,15 +755,15 @@ namespace UACS
 				{
 					auto cargoInfo = pCargo->clbkGetCargoInfo();
 
-					if (cargoInfo->resource.empty() || cargoInfo->resource != resource) continue;
+					if (!cargoInfo->resource || cargoInfo->resource != resource) continue;
 
 					VECTOR3 cargoPos;
 					pVessel->GetRelativePos(pCargo->GetHandle(), cargoPos);
 
 					if (length(cargoPos) - pCargo->GetSize() > pVslCargoInfo->drainRange) continue;
 
-					drainInfo.result = API::DRIN_SUCCED;
-					drainInfo.mass = pCargo->clbkDrainResource(mass);
+					drainInfo.first = API::DRIN_SUCCED;
+					drainInfo.second = pCargo->clbkDrainResource(mass);
 
 					break;
 				}
@@ -766,11 +772,11 @@ namespace UACS
 			return drainInfo;
 		}
 
-		API::DrainInfo VesselImpl::DrainStationResource(std::string_view resource, double mass, OBJHANDLE hStation)
+		std::pair<API::DrainResult, double> VesselImpl::DrainStationResource(std::string_view resource, double mass, OBJHANDLE hStation)
 		{
-			API::DrainInfo drainInfo;
-			drainInfo.result = API::DRIN_NOT_IN_RNG;
-			drainInfo.mass = {};
+			std::pair<API::DrainResult, double> drainInfo;
+			drainInfo.first = API::DRIN_NOT_IN_RNG;
+			drainInfo.second = {};
 
 			VESSEL* pStation;
 			DWORD vesselIdx{};
@@ -808,7 +814,7 @@ namespace UACS
 
 					if (!hConfig)
 					{
-						if (hStation) { drainInfo.result = API::DRIN_FAIL; return drainInfo; }
+						if (hStation) { drainInfo.first = API::DRIN_FAIL; return drainInfo; }
 
 						break;
 					}
@@ -819,7 +825,7 @@ namespace UACS
 					{
 						oapiCloseFile(hConfig, FILE_IN_ZEROONFAIL);
 
-						if (hStation) { drainInfo.result = API::DRIN_FAIL; return drainInfo; }
+						if (hStation) { drainInfo.first = API::DRIN_FAIL; return drainInfo; }
 
 						break;
 					}
@@ -839,8 +845,8 @@ namespace UACS
 						{
 							if (stationResource == resource)
 							{
-								drainInfo.result = API::DRIN_SUCCED;
-								drainInfo.mass = mass;
+								drainInfo.first = API::DRIN_SUCCED;
+								drainInfo.second = mass;
 
 								return drainInfo;
 							}
@@ -850,7 +856,7 @@ namespace UACS
 						else stationResource += letter;
 					}
 
-					if (hStation) { drainInfo.result = API::DRIN_RES_NOMATCH; return drainInfo; }
+					if (hStation) { drainInfo.first = API::DRIN_RES_NOMATCH; return drainInfo; }
 
 					break;
 				}
@@ -907,8 +913,6 @@ namespace UACS
 
 			cargoInfo.handle = pCargo->GetHandle();
 			cargoInfo.attached = pCargo->GetAttachmentStatus(cargoCargoInfo->hAttach);
-			cargoInfo.name = pCargo->GetName();
-			cargoInfo.mass = pCargo->GetMass();
 			cargoInfo.type = cargoCargoInfo->type;
 			cargoInfo.resource = cargoCargoInfo->resource;
 			cargoInfo.unpacked = cargoCargoInfo->unpacked;
@@ -917,40 +921,28 @@ namespace UACS
 			return cargoInfo;
 		}
 
-		OBJHANDLE VesselImpl::GetSlotCargoHandle(size_t slotIdx) { return pVessel->GetAttachmentStatus(pVslCargoInfo->slots.at(slotIdx).hAttach); }
-
-		std::optional<VesselImpl::SlotResult> VesselImpl::GetEmptySlot(bool mustBeOpen)
+		API::SlotInfo& VesselImpl::GetEmptySlot(bool mustBeOpen)
 		{
-			bool open = true;
-
-			for (size_t index{}; index < pVslCargoInfo->slots.size(); ++index)
+			for (auto& slotInfo : pVslCargoInfo->slots)
 			{
-				open = pVslCargoInfo->slots.at(index).open;
+				if (mustBeOpen && !slotInfo.open) continue;
 
-				if (!open && mustBeOpen) continue;
-
-				if (!GetSlotCargoHandle(index)) return { {index, open} };
+				if (!slotInfo.cargoInfo) return slotInfo;
 			}
 
-			return {};
+			return pVslCargoInfo->slots.front();
 		}
 
-		std::optional<VesselImpl::SlotResult> VesselImpl::GetOccupiedSlot(bool mustBeOpen)
+		API::SlotInfo& VesselImpl::GetOccupiedSlot(bool mustBeOpen)
 		{
-			bool open = true;
-
-			for (size_t index{}; index < pVslCargoInfo->slots.size(); ++index)
+			for (auto& slotInfo : pVslCargoInfo->slots)
 			{
-				open = pVslCargoInfo->slots.at(index).open;
+				if (mustBeOpen && !slotInfo.open) continue;
 
-				if (!open && mustBeOpen) continue;
-
-				OBJHANDLE handle = GetSlotCargoHandle(index);
-
-				if (handle) return { {index, open, handle} };
+				if (slotInfo.cargoInfo) return slotInfo;
 			}
 
-			return {};
+			return pVslCargoInfo->slots.front();
 		}
 
 		std::vector<VECTOR3> VesselImpl::GetNearbyCargoes(const VECTOR3& slotPos)

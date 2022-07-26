@@ -13,9 +13,22 @@ namespace UACS
 		void AstronautImpl::Destroy() noexcept
 		{
 			std::erase(astrVector, pAstr);
-
 			delete this;
 		}
+
+		std::string_view AstronautImpl::GetUACSVersion() { return Core::GetUACSVersion(); }
+
+		size_t AstronautImpl::GetScnAstrCount() { return Core::GetScnAstrCount(); }
+
+		std::pair<OBJHANDLE, const API::AstrInfo*> AstronautImpl::GetAstrInfoByIndex(size_t astrIdx) { return Core::GetAstrInfoByIndex(astrIdx); }
+
+		const API::AstrInfo* AstronautImpl::GetAstrInfoByHandle(OBJHANDLE hAstr) { return Core::GetAstrInfoByHandle(hAstr); }
+
+		const API::VslAstrInfo* AstronautImpl::GetVslAstrInfo(OBJHANDLE hVessel) { return Core::GetVslAstrInfo(hVessel); }
+
+		void AstronautImpl::SetScnAstrInfoByIndex(size_t astrIdx, API::AstrInfo astrInfo) { Core::SetScnAstrInfoByIndex(astrIdx, astrInfo); }
+
+		bool AstronautImpl::SetScnAstrInfoByHandle(OBJHANDLE hAstr, API::AstrInfo astrInfo) { return Core::SetScnAstrInfoByHandle(hAstr, astrInfo); }
 
 		std::optional<API::NearestAirlock> AstronautImpl::GetNearestAirlock(double range)
 		{
@@ -81,22 +94,6 @@ namespace UACS
 			if (!found) return {};
 
 			return nearAirlock;
-		}
-
-		const API::VslAstrInfo* AstronautImpl::GetVslAstrInfo(OBJHANDLE hVessel)
-		{
-			const auto& vesselPair = vslAstrMap.find(hVessel);
-
-			if (vesselPair == vslAstrMap.end()) return {};
-
-			return vesselPair->second;
-		}
-
-		const API::AstrInfo* AstronautImpl::GetAstrInfo(OBJHANDLE hVessel)
-		{
-			auto astrIt = std::ranges::find_if(astrVector, [hVessel](API::Astronaut* pAstr) { return pAstr->GetHandle() == hVessel; });
-
-			return astrIt == astrVector.end() ? nullptr : (*astrIt)->clbkGetAstrInfo();
 		}
 
 		API::IngressResult AstronautImpl::Ingress(OBJHANDLE hVessel, std::optional<size_t> airlockIdx, std::optional<size_t> stationIdx)

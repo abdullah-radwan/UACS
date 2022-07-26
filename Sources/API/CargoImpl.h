@@ -14,8 +14,8 @@ namespace UACS
 
 		private:
 			Cargo* cargo;
-
 			HINSTANCE coreDLL;
+
 			Core::CargoFunc AddCargo{};
 			Core::CargoFunc DeleteCargo{};
 		};

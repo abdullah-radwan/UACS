@@ -16,11 +16,21 @@ namespace UACS
 		public:
 			virtual void Destroy() noexcept = 0;
 
-			virtual std::optional<API::NearestAirlock> GetNearestAirlock(double) = 0;
+			virtual std::string_view GetUACSVersion() = 0;
+
+			virtual size_t GetScnAstrCount() = 0;
+
+			virtual std::pair<OBJHANDLE, const API::AstrInfo*> GetAstrInfoByIndex(size_t) = 0;
+
+			virtual const API::AstrInfo* GetAstrInfoByHandle(OBJHANDLE) = 0;
 
 			virtual const API::VslAstrInfo* GetVslAstrInfo(OBJHANDLE) = 0;
 
-			virtual const API::AstrInfo* GetAstrInfo(OBJHANDLE) = 0;
+			virtual void SetScnAstrInfoByIndex(size_t, API::AstrInfo) = 0;
+
+			virtual bool SetScnAstrInfoByHandle(OBJHANDLE, API::AstrInfo) = 0;
+
+			virtual std::optional<API::NearestAirlock> GetNearestAirlock(double) = 0;
 
 			virtual API::IngressResult Ingress(OBJHANDLE, std::optional<size_t>, std::optional<size_t>) = 0;
 		};

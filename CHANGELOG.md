@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Alpha 4 - 2022-07-26
+### Added
+- New API methods for both vessels and astronauts.
+### Changed
+- All shortcuts to be Alt so as not to interfer with MFD shortcuts. Use Alt + M to change the astronaut HUD mode.
+- The API docs were rewritten for better clarity.
+### Fixed
+- Crashes when the astronaut dies and other issues.
+### Removed
+- DrainInfo struct and replaced with a pair of DrainResult and drained mass.
+
 ## Alpha 3 - 2022-07-21
 ### Added
 - Astronaut is now adjustable via config file.

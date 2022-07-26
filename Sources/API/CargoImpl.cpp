@@ -4,7 +4,7 @@ namespace UACS
 {
 	namespace API
 	{
-		Cargo::Cargo(OBJHANDLE hVessel, int fModel) : VESSEL4(hVessel, fModel), cargoImpl(new CargoImpl(this)) {}
+		Cargo::Cargo(OBJHANDLE hVessel, int fModel) : VESSEL4(hVessel, fModel), pCargoImpl(new CargoImpl(this)) {}
 
 		Cargo::~Cargo() = default;
 
@@ -23,7 +23,6 @@ namespace UACS
 			if (coreDLL)
 			{
 				AddCargo = reinterpret_cast<Core::CargoFunc>(GetProcAddress(coreDLL, "AddCargo"));
-
 				DeleteCargo = reinterpret_cast<Core::CargoFunc>(GetProcAddress(coreDLL, "DeleteCargo"));
 			}
 
@@ -34,7 +33,6 @@ namespace UACS
 				if (coreDLL) FreeLibrary(coreDLL);
 
 				oapiWriteLog("UACS cargo fatal error: Couldn't load the core DLL");
-
 				std::terminate();
 			}
 		}

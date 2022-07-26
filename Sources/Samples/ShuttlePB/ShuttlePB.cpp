@@ -16,8 +16,10 @@
 // Overloaded callback functions
 // ==============================================================
 
-ShuttlePB::ShuttlePB(OBJHANDLE hVessel, int flightmodel) : VESSEL4(hVessel, flightmodel), uacs{ UACS::API::Vessel::CreateInstance(this, &astrInfo, &cargoInfo) }
+ShuttlePB::ShuttlePB(OBJHANDLE hVessel, int flightmodel) : VESSEL4(hVessel, flightmodel), uacs(UACS::API::Vessel::CreateInstance(this, &astrInfo, &cargoInfo))
 {
+	sprintf(buffer, "UACS version: %s", uacs->GetUACSVersion().data());
+	message = _strdup(buffer);
 }
 
 // --------------------------------------------------------------
@@ -182,14 +184,82 @@ void ShuttlePB::clbkSetClassCaps (FILEHANDLE cfg)
 	cargoInfo.slots.push_back({ CreateAttachment(false, { 0,-1.65,-1.3 }, { 0,-1,0 }, { 0,0,1 }, "UACS"), true });
 }
 
+void ShuttlePB::clbkLoadStateEx(FILEHANDLE scn, void* status)
+{
+	char* line;
+
+	while (oapiReadScenario_nextline(scn, line)) if (!uacs->ParseScenarioLine(line)) ParseScenarioLineEx(line, status);
+}
+
+void ShuttlePB::clbkSaveState(FILEHANDLE scn)
+{
+	VESSEL4::clbkSaveState(scn);
+
+	uacs->SaveState(scn);
+}
+
+void ShuttlePB::clbkPostCreation() { uacs->clbkPostCreation(); }
+
+void ShuttlePB::clbkPreStep(double simt, double simdt, double mjd)
+{
+	if (timer < 5) timer += simdt;
+
+	if (GroundContact() && !(GetFlightStatus() & 1) && GetGroundspeed() <= 0.2)
+	{
+		VECTOR3 thrustVector;
+
+		if (!GetThrustVector(thrustVector)) SetStatusLanded();
+	}
+}
+
 int ShuttlePB::clbkConsumeBufferedKey(DWORD key, bool down, char* kstate)
 {
 	if (!down) return 0;
 
-	if (KEYMOD_SHIFT(kstate))
+	if (KEYMOD_ALT(kstate))
+	{
+		switch (key)
+		{
+		case OAPI_KEY_NUMPAD8:
+			astrIdx + 1 < uacs->GetAvailAstrCount() ? ++astrIdx : astrIdx = 0;
+			return 1;
+
+		case OAPI_KEY_NUMPAD2:
+			astrIdx > 0 ? --astrIdx : astrIdx = uacs->GetAvailAstrCount() - 1;
+			return 1;
+
+		case OAPI_KEY_NUMPAD6:
+			cargoIdx + 1 < uacs->GetAvailCargoCount() ? ++cargoIdx : cargoIdx = 0;
+			return 1;
+
+		case OAPI_KEY_NUMPAD4:
+			cargoIdx > 0 ? --cargoIdx : cargoIdx = uacs->GetAvailCargoCount() - 1;
+			return 1;
+		}
+	}
+
+	if (KEYMOD_RALT(kstate))
 	{ 
 		switch (key)
 		{
+		case OAPI_KEY_A:
+			switch (uacs->AddAstronaut(astrIdx))
+			{
+			case UACS::API::INGRS_SUCCED:
+				message = "Success: Selected astronaut added.";
+				break;
+
+			case UACS::API::INGRS_STN_OCCP:
+				message = "Error: Station occupied.";
+				break;
+
+			case UACS::API::INGRS_FAIL:
+				message = "Error: The addition failed.";
+				break;
+			}
+			timer = 0;
+			return 1;
+
 		case OAPI_KEY_E:
 			switch (uacs->EgressAstronaut(0, 0))
 			{
@@ -253,6 +323,19 @@ int ShuttlePB::clbkConsumeBufferedKey(DWORD key, bool down, char* kstate)
 			timer = 0;
 			return 1;
 
+		case OAPI_KEY_D:
+			astrInfo.stations.front() = {};
+			message = "Success: Astronaut deleted.";
+
+			timer = 0;
+			return 1;
+		}
+	}
+
+	else if (KEYMOD_LALT(kstate))
+	{
+		switch (key)
+		{
 		case OAPI_KEY_A:
 			switch (uacs->AddCargo(cargoIdx))
 			{
@@ -353,17 +436,28 @@ int ShuttlePB::clbkConsumeBufferedKey(DWORD key, bool down, char* kstate)
 
 		case OAPI_KEY_F:
 		{
-			double requiredMass = GetMaxFuelMass() - GetFuelMass();
+			double reqMass = GetMaxFuelMass() - GetFuelMass();
 
-			double drainedMass = uacs->DrainUngrappledResource("fuel", requiredMass).mass;
+			auto drainInfo = uacs->DrainGrappledResource("fuel", reqMass);
+			if (drainInfo.first != UACS::API::DRIN_SUCCED) drainInfo = uacs->DrainUngrappledResource("fuel", reqMass);
 
-			if (drainedMass > 0)
+			switch (drainInfo.first)
 			{
-				SetFuelMass(GetFuelMass() + drainedMass);
-				sprintf(buffer, "Success: %g kilograms drained", drainedMass);
+			case UACS::API::DRIN_SUCCED:
+				SetFuelMass(GetFuelMass() + drainInfo.second);
+
+				sprintf(buffer, "Success: %g kg drained.", drainInfo.second);
 				message = _strdup(buffer);
+				break;
+
+			case UACS::API::DRIN_NOT_IN_RNG:
+				message = "Error: No resource cargo grappled or in range.";;
+				break;
+
+			case UACS::API::DRIN_FAIL:
+				message = "Error: The drainage failed.";
+				break;
 			}
-			else message = "Error: The drainage failed.";
 
 			timer = 0;
 			return 1;
@@ -387,16 +481,8 @@ int ShuttlePB::clbkConsumeBufferedKey(DWORD key, bool down, char* kstate)
 			}
 			timer = 0;
 			return 1;
-
-		default: break;
 		}
-	}
-
-	if (key == OAPI_KEY_S)
-	{
-		cargoIdx + 1 < uacs->GetAvailableCargoCount() ? ++cargoIdx : cargoIdx = 0;
-		return 1;
-	}
+	}	 
 
 	return 0;
 }
@@ -415,47 +501,60 @@ bool ShuttlePB::clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* 
 	if (s / sw < 0.7284) x = (lw * 10) + 10;
 	int y = static_cast<int>((168 * d) + (-88 * d));
 
-	sprintf(buffer, "Selected cargo to add: %s", uacs->GetAvailableCargoName(cargoIdx).data());
+	sprintf(buffer, "Selected astronaut to add: %s", uacs->GetAvailAstrName(astrIdx).data());
 	skp->Text(x, y, buffer, strlen(buffer));
-	y += 36;
-
-	skp->Text(x, y, "S = Select cargo to add", 25);
 	y += 20;
 
-	skp->Text(x, y, "Shift + E = Egress astronaut", 28);
+	sprintf(buffer, "Selected cargo to add: %s", uacs->GetAvailCargoName(cargoIdx).data());
+	skp->Text(x, y, buffer, strlen(buffer));
+	y += 30;
+
+	skp->Text(x, y, "Alt + Numpad 8/2 = Select astronaut to add", 42);
 	y += 20;
 
-	skp->Text(x, y, "Shift + T = Transfer astronaut", 30);
+	skp->Text(x, y, "Alt + Numpad 6/4 = Select cargo to add", 38);
 	y += 20;
 
-	skp->Text(x, y, "Shift + A = Add selected cargo", 30);
+	skp->Text(x, y, "Right Alt + A = Add selected astronaut", 38);
 	y += 20;
 
-	skp->Text(x, y, "Shift + G = Grapple nearest cargo", 33);
+	skp->Text(x, y, "Right Alt + E = Egress astronaut", 32);
 	y += 20;
 
-	skp->Text(x, y, "Shift + R = Release grappled cargo", 34);
+	skp->Text(x, y, "Right Alt + T = Transfer astronaut", 34);
 	y += 20;
 
-	skp->Text(x, y, "Shift + P = Pack nearest cargo", 30);
+	skp->Text(x, y, "Right Alt + D = Delete astronaut", 32);
+	y += 30;
+
+	skp->Text(x, y, "Left Alt + A = Add selected cargo", 33);
 	y += 20;
 
-	skp->Text(x, y, "Shift + U = Unpack nearest cargo", 32);
+	skp->Text(x, y, "Left Alt + G = Grapple nearest cargo", 36);
 	y += 20;
 
-	skp->Text(x, y, "Shift + F = Drain nearest resource", 34);
+	skp->Text(x, y, "Left Alt + R = Release grappled cargo", 37);
 	y += 20;
 
-	skp->Text(x, y, "Shift + D = Delete grappled cargo", 33);
+	skp->Text(x, y, "Left Alt + P = Pack nearest cargo", 33);
+	y += 20;
 
-	if (timer < 5) { y += 36; skp->Text(x, y, message, strlen(message)); }
+	skp->Text(x, y, "Left Alt + U = Unpack nearest cargo", 35);
+	y += 20;
 
-	if (auto info = astrInfo.stations.at(0).astrInfo; info)
+	skp->Text(x, y, "Left Alt + F = Drain nearest resource", 37);
+	y += 20;
+
+	skp->Text(x, y, "Left Alt + D = Delete grappled cargo", 36);
+
+	if (timer < 5) { y += 30; skp->Text(x, y, message, strlen(message)); }
+
+	if (auto info = astrInfo.stations.front().astrInfo; info)
 	{
-		y += 36;
+		y += 30;
 
 		skp->Text(x, y, "Onboard astronaut information", 29);
-		y += 40;
+		y += 36;
 
 		sprintf(buffer, "Name: %s", (*info).name.c_str());
 		skp->Text(x, y, buffer, strlen(buffer));
@@ -469,18 +568,18 @@ bool ShuttlePB::clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* 
 		skp->Text(x, y, buffer, strlen(buffer));
 	}
 
-	if (auto info = uacs->GetCargoInfoBySlot(0); info)
+	if (const auto& info = cargoInfo.slots.front().cargoInfo; info)
 	{
-		y += 36;
+		y += 30;
 
 		skp->Text(x, y, "Grappled cargo information", 26);
-		y += 40;
+		y += 30;
 
-		sprintf(buffer, "Name: %s", (*info).name.c_str());
+		sprintf(buffer, "Name: %s", oapiGetVesselInterface((*info).handle)->GetName());
 		skp->Text(x, y, buffer, strlen(buffer));
 		y += 20;
 
-		sprintf(buffer, "Mass: %gkg", (*info).mass);
+		sprintf(buffer, "Mass: %gkg", oapiGetMass((*info).handle));
 		skp->Text(x, y, buffer, strlen(buffer));
 		y += 20;
 
@@ -490,7 +589,7 @@ bool ShuttlePB::clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* 
 			skp->Text(x, y, "Type: Static", 12);
 			break;
 
-		case UACS::API::UNPACKABLE_ONLY:
+		case UACS::API::UNPACK_ONLY:
 			skp->Text(x, y, "Type: Unpackable only", 21);
 
 			y += 20;
@@ -499,7 +598,7 @@ bool ShuttlePB::clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* 
 
 			break;
 
-		case UACS::API::PACKABLE_UNPACKABLE:
+		case UACS::API::PACK_UNPACK:
 			skp->Text(x, y, "Type: Packacble and unpackable", 30);
 
 			y += 20;
@@ -509,42 +608,16 @@ bool ShuttlePB::clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* 
 			break;
 		}
 
-		y += 20;
-
-		if (!(*info).resource.empty())
+		if ((*info).resource)
 		{
-			sprintf(buffer, "Resource: %s", (*info).resource.c_str());
+			y += 20;
+
+			sprintf(buffer, "Resource: %s", (*(*info).resource).c_str());
 			skp->Text(x, y, buffer, strlen(buffer));
 		}
 	}
 
 	return true;
-}
-
-void ShuttlePB::clbkPreStep(double simt, double simdt, double mjd)
-{
-	if (timer < 5) timer += simdt;
-
-	if (GroundContact() && !(GetFlightStatus() & 1) && GetGroundspeed() <= 0.2)
-	{
-		VECTOR3 thrustVector;
-
-		if(!GetThrustVector(thrustVector)) SetStatusLanded();
-	}
-}
-
-void ShuttlePB::clbkLoadStateEx(FILEHANDLE scn, void* status)
-{
-	char* line;
-
-	while (oapiReadScenario_nextline(scn, line)) if (!uacs->ParseScenarioLine(line)) ParseScenarioLineEx(line, status);
-}
-
-void ShuttlePB::clbkSaveState(FILEHANDLE scn)
-{
-	VESSEL4::clbkSaveState(scn);
-
-	uacs->SaveState(scn);
 }
 
 void ShuttlePB::SetStatusLanded()

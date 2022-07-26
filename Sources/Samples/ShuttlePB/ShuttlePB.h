@@ -24,11 +24,14 @@ public:
 	ShuttlePB(OBJHANDLE hVessel, int flightmodel);
 
 	void clbkSetClassCaps(FILEHANDLE cfg);
-	int clbkConsumeBufferedKey(DWORD key, bool down, char* kstate);
-	bool clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
-	void clbkPreStep(double simt, double simdt, double mjd);
 	void clbkLoadStateEx(FILEHANDLE scn, void* status);
 	void clbkSaveState(FILEHANDLE scn);
+
+	void clbkPostCreation();
+	void clbkPreStep(double simt, double simdt, double mjd);
+
+	int clbkConsumeBufferedKey(DWORD key, bool down, char* kstate);
+	bool clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
 
 private:
 	// transformations for control surface animations
@@ -39,10 +42,10 @@ private:
 	UACS::API::VslAstrInfo astrInfo;
 	UACS::API::VslCargoInfo cargoInfo;
 
-	size_t cargoIdx{};  // For the cargo selection on the HUD
+	size_t astrIdx{}, cargoIdx{};  // For the cargo selection on the HUD
 	char buffer[256];    // To draw on the HUD
 	const char* message{}; // To show messages on the HUD
-	double timer{ 5 };    // To show the messages for 5 seconds on the HUD
+	double timer{};    // To show the messages for 5 seconds on the HUD
 
 	void SetStatusLanded();
 

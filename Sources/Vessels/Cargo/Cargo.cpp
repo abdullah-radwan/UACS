@@ -52,11 +52,11 @@ namespace UACS
 
 			switch (cargoInfo.type)
 			{
-			case API::UNPACKABLE_ONLY:
+			case API::UNPACK_ONLY:
 				oapiReadItem_int(cfg, "SpawnCount", spawnCount);
 				[[fallthrough]];
 
-			case API::PACKABLE_UNPACKABLE:
+			case API::PACK_UNPACK:
 				if (!oapiReadItem_int(cfg, "UnpackingType", unpackType)) WarnAndTerminate("unpacking type", GetClassNameA(), "cargo");
 
 				switch (unpackType)
@@ -121,8 +121,8 @@ namespace UACS
 				{
 					switch (cargoInfo.type)
 					{
-					case API::UNPACKABLE_ONLY:
-					case API::PACKABLE_UNPACKABLE:
+					case API::UNPACK_ONLY:
+					case API::PACK_UNPACK:
 						switch (unpackType)
 						{
 						case UnpackType::MODULE:
@@ -157,8 +157,8 @@ namespace UACS
 
 			switch (cargoInfo.type)
 			{
-			case API::UNPACKABLE_ONLY:
-			case API::PACKABLE_UNPACKABLE:
+			case API::UNPACK_ONLY:
+			case API::PACK_UNPACK:
 				switch (unpackType)
 				{
 				case UnpackType::MODULE:
@@ -194,7 +194,7 @@ namespace UACS
 			}
 
 			// Don't continue if the cargo is not unpackable or not Orbiter vessel
-			if ((cargoInfo.type != API::PACKABLE_UNPACKABLE && cargoInfo.type != API::UNPACKABLE_ONLY) || unpackType != UnpackType::VESSEL) return;
+			if ((cargoInfo.type != API::PACK_UNPACK && cargoInfo.type != API::UNPACK_ONLY) || unpackType != UnpackType::VESSEL) return;
 
 			const bool attached = GetAttachmentStatus(cargoInfo.hAttach);
 
@@ -300,7 +300,7 @@ namespace UACS
 
 			SetUnpackedCaps();
 
-			if (once || cargoInfo.type != API::UNPACKABLE_ONLY) return true;
+			if (once || cargoInfo.type != API::UNPACK_ONLY) return true;
 
 			VESSELSTATUS2 status = GetVesselStatus(this);
 
@@ -391,7 +391,7 @@ namespace UACS
 
 			SetSize(unpackSize);
 
-			SetEmptyMass(cargoInfo.resource.empty() ? netMass : resContMass);
+			SetEmptyMass(cargoInfo.resource ? resContMass : netMass);
 
 			double stiffness = 100 * GetMass();
 			double damping = 2 * sqrt(GetMass() * stiffness);

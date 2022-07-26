@@ -50,11 +50,11 @@ namespace UACS
 			double consumptionRate{ 1 };
 
 			std::unique_ptr<API::Vessel> pVslAPI;
-			API::VslCargoInfo cargoInfo;
+			API::VslCargoInfo vslCargoInfo;
 			SpotLight* spotLight1{};
 			SpotLight* spotLight2{};
 
-			enum { HUD_NEAREST = 1, HUD_VESSEL, HUD_CARGO, HUD_SHORT1, HUD_SHORT2 };
+			enum { HUD_NST = 1, HUD_VSL, HUD_AST, HUD_CRG, HUD_SRT1, HUD_SRT2 };
 
 			struct HudInfo
 			{
@@ -62,7 +62,7 @@ namespace UACS
 				oapi::Font* deadFont{};
 
 				std::string message;
-				double timer{ 5 };
+				double timer{};
 
 				std::string modeMsg;
 				double modeTimer{ 5 };
@@ -140,17 +140,20 @@ namespace UACS
 			bool InBreathableArea(bool showMessage);
 			void Kill();
 
-			void DrawNearestHUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
-			void DrawVesselHUD(int x, int y, oapi::Sketchpad* skp);
+			void DrawNearHUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
+			void DrawVslHUD(int x, int y, oapi::Sketchpad* skp);
+			void DrawAstrHUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
 			void DrawCargoHUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
 			void DrawShort1HUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
 			void DrawShort2HUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
 
-			void DrawVesselInfo(int x, int& y, oapi::Sketchpad* skp, VECTOR3 relPos);
+			void DrawVslInfo(int x, int& y, oapi::Sketchpad* skp, VECTOR3 relPos);
+			void DrawAstrInfo(int x, int& y, oapi::Sketchpad* skp, const API::AstrInfo& astrInfo);
 			void DrawCargoInfo(int x, int& y, oapi::Sketchpad* skp, const API::CargoInfo& cargoInfo, bool drawBreathable);
 
-			std::optional<size_t> GetFirstVesselIndex();
-			std::optional<size_t> GetFirstCargoIndex();
+			std::optional<size_t> GetFirstVslIdx();
+			std::optional<size_t> GetFirstAstrIdx();
+			std::optional<size_t> GetFirstCargoIdx();
 		};
 	}
 }

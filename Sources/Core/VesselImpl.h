@@ -11,31 +11,47 @@ namespace UACS
 			VesselImpl(VESSEL*, API::VslAstrInfo*, API::VslCargoInfo*);
 			void Destroy() noexcept override;
 
+			std::string_view GetUACSVersion() override;
+
 			bool ParseScenarioLine(char*) override;
+
+			void clbkPostCreation() override;
 
 			void SaveState(FILEHANDLE) override;
 
-			const API::AstrInfo* GetAstrInfo(OBJHANDLE) override;
+			size_t GetScnAstrCount() override;
+
+			std::pair<OBJHANDLE, const API::AstrInfo*> GetAstrInfoByIndex(size_t) override;
+
+			const API::AstrInfo* GetAstrInfoByHandle(OBJHANDLE) override;
 
 			const API::VslAstrInfo* GetVslAstrInfo(OBJHANDLE) override;
+
+			void SetScnAstrInfoByIndex(size_t, API::AstrInfo) override;
+
+			bool SetScnAstrInfoByHandle(OBJHANDLE, API::AstrInfo) override;
+
+			size_t GetAvailAstrCount() override;
+
+			std::string_view GetAvailAstrName(size_t) override;
+
+			API::IngressResult AddAstronaut(size_t, std::optional<size_t>, std::optional<API::AstrInfo>) override;
 
 			API::TransferResult TransferAstronaut(size_t, size_t, std::optional<size_t>) override;
 
 			API::EgressResult EgressAstronaut(size_t, size_t) override;
 
-			size_t GetScenarioCargoCount() override;
+			size_t GetScnCargoCount() override;
 
 			API::CargoInfo GetCargoInfoByIndex(size_t) override;
 
 			std::optional<API::CargoInfo> GetCargoInfoByHandle(OBJHANDLE) override;
 
-			std::optional<API::CargoInfo> GetCargoInfoBySlot(size_t) override;
-
 			double GetTotalCargoMass() override;
 
-			size_t GetAvailableCargoCount() override;
+			size_t GetAvailCargoCount() override;
 
-			std::string_view GetAvailableCargoName(size_t) override;
+			std::string_view GetAvailCargoName(size_t) override;
 
 			API::GrappleResult AddCargo(size_t, std::optional<size_t>) override;
 
@@ -49,17 +65,21 @@ namespace UACS
 
 			API::PackResult UnpackCargo(OBJHANDLE) override;
 
-			API::DrainInfo DrainGrappledResource(std::string_view, double, std::optional<size_t>) override;
+			std::pair<API::DrainResult, double> DrainGrappledResource(std::string_view, double, std::optional<size_t>) override;
 
-			API::DrainInfo DrainUngrappledResource(std::string_view, double, OBJHANDLE) override;
+			std::pair<API::DrainResult, double> DrainUngrappledResource(std::string_view, double, OBJHANDLE) override;
 
-			API::DrainInfo DrainStationResource(std::string_view, double, OBJHANDLE) override;
+			std::pair<API::DrainResult, double> DrainStationResource(std::string_view, double, OBJHANDLE) override;
 
 			OBJHANDLE GetNearestBreathable() override;
 
 			bool InBreathableArea() override;
 
 		private:
+			inline static std::vector<std::string> availCargoVector, availAstrVector;
+			static void InitAvailCargo();
+			static void InitAvailAstr();
+
 			VESSEL* pVessel;
 			API::VslAstrInfo* pVslAstrInfo;
 			API::VslCargoInfo* pVslCargoInfo;
@@ -73,17 +93,9 @@ namespace UACS
 			bool passRangeCheck{};
 
 			API::CargoInfo SetCargoInfo(API::Cargo* pCargo);
-			OBJHANDLE GetSlotCargoHandle(size_t slotIdx);
 
-			struct SlotResult
-			{
-				size_t slotIdx;
-				bool open;
-				OBJHANDLE hCargo;
-			};
-
-			std::optional<SlotResult> GetEmptySlot(bool mustBeOpen);
-			std::optional<SlotResult> GetOccupiedSlot(bool mustBeOpen);
+			API::SlotInfo& GetEmptySlot(bool mustBeOpen);
+			API::SlotInfo& GetOccupiedSlot(bool mustBeOpen);
 
 			std::vector<VECTOR3> GetNearbyCargoes(const VECTOR3& slotPos);
 			bool GetNearestCargoEmptyPos(VECTOR3& initialPos);
