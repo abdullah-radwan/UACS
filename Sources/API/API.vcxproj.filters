@@ -15,9 +15,6 @@
     <ClInclude Include="Astronaut.h">
       <Filter>Astronaut</Filter>
     </ClInclude>
-    <ClInclude Include="AstronautImpl.h">
-      <Filter>Astronaut</Filter>
-    </ClInclude>
     <ClInclude Include="Cargo.h">
       <Filter>Cargo</Filter>
     </ClInclude>
@@ -28,18 +25,15 @@
     <ClInclude Include="Vessel.h">
       <Filter>Vessel</Filter>
     </ClInclude>
-    <ClInclude Include="VesselImpl.h">
-      <Filter>Vessel</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AstronautImpl.cpp">
+    <ClCompile Include="Astronaut.cpp">
       <Filter>Astronaut</Filter>
     </ClCompile>
     <ClCompile Include="CargoImpl.cpp">
       <Filter>Cargo</Filter>
     </ClCompile>
-    <ClCompile Include="VesselImpl.cpp">
+    <ClCompile Include="Vessel.cpp">
       <Filter>Vessel</Filter>
     </ClCompile>
   </ItemGroup>

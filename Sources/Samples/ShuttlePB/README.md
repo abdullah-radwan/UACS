@@ -1,2 +1,2 @@
-# UCSO ShuttlePB
-Universal Cargo System for Orbiter (UCSO) integration example for ShuttlePB.
+# UACS ShuttlePB
+Universal Astronaut and Cargo System (UACS) integration example for ShuttlePB.

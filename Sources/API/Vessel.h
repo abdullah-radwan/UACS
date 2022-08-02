@@ -8,6 +8,8 @@
 
 namespace UACS
 {
+	namespace Core { class Vessel; }
+
 	namespace API
 	{
 		struct CargoInfo
@@ -63,9 +65,6 @@ namespace UACS
 
 			/// The search range for draining resources in meters.
 			double drainRange{ 100 };
-
-			/// The search range for breathable cargoes in meters.
-			double breathableRange{ 100 };
 
 			/// The maximum single cargo mass in kilograms.
 			std::optional<double> maxCargoMass;
@@ -191,10 +190,7 @@ namespace UACS
 			*/
 			DRIN_NOT_IN_RNG,
 
-			/// The passed cargo is not a resource.
-			DRIN_NOT_RES,
-
-			/// The passed cargo resource doesn't match the passed resource.
+			/// The passed cargo or vessel resource (if any) doesn't match the passed resource.
 			DRIN_RES_NOMATCH,
 
 			DRIN_FAIL
@@ -212,14 +208,14 @@ namespace UACS
 			 * @note All pointers must live until the vessel API instance is destroyed. Don't pass the address of temporary variables.
 			 * @return An instance of the vessel API even if UACS isn't installed. To know if UACS isn't installed, use GetUACSVersion.
 			*/
-			static std::unique_ptr<Vessel> CreateInstance(VESSEL* pVessel, VslAstrInfo* pVslAstrInfo, VslCargoInfo* pVslCargoInfo);
-			virtual ~Vessel() = default;
+			Vessel(VESSEL* pVessel, VslAstrInfo* pVslAstrInfo, VslCargoInfo* pVslCargoInfo);
+			~Vessel();
 
 			/**
 			 * @brief Gets UACS version. It can be used to know if UACS is installed.
-			 * @return UACS version if UACS is installed, or an empty string if not.
+			 * @return UACS version if UACS is installed, or an empty string view if not.
 			*/
-			virtual std::string_view GetUACSVersion() = 0;
+			std::string_view GetUACSVersion();
 			
 			/**
 			 * @brief Parses the scenario file to load UACS information. It must be called in the vessel ParseScenarioLine method.
@@ -228,15 +224,15 @@ namespace UACS
 			 * @param line The scenario line from the vessel ParseScenarioLine method.
 			 * @return True if UACS information was loaded, false if not.
 			*/
-			virtual bool ParseScenarioLine(char* line) = 0;
+			bool ParseScenarioLine(char* line);
 
 			/**
 			 * @brief Finishes UACS initialization.
 			 * It must be called once from the vessel clbkPostCreation method, after defining all airlocks, stations, and slots.
 			 * 
-			 * Currently, this is used to link grapplde cargoes to their slots after loading the scenario.
+			 * Currently, this is used to link grappled cargoes to their slots after loading the scenario.
 			*/
-			virtual void clbkPostCreation() = 0;
+			void clbkPostCreation();
 
 			/**
 			 * @brief Saves UACS information to the scenario file. It must be called in the vessel clbkSaveState method.
@@ -244,34 +240,34 @@ namespace UACS
 			 * Currently, this is used to save astronaut information.
 			 * @param scn The scenario file.
 			*/
-			virtual void SaveState(FILEHANDLE scn) = 0;
+			void SaveState(FILEHANDLE scn);
 
 			/**
 			 * @brief Gets the astronaut count in the scenario.
 			 * @return The astronaut count in the scenario.
 			*/
-			virtual size_t GetScnAstrCount() = 0;
+			size_t GetScnAstrCount();
 
 			/**
 			 * @brief Gets an astronaut information by the astronaut index.
 			 * @param astrIdx The astronaut index. It must be less than GetScnAstrCount.
 			 * @return A pair of the astronaut vessel handle and a pointer to the astronaut AstrInfo struct.
 			*/
-			virtual std::pair<OBJHANDLE, const AstrInfo*> GetAstrInfoByIndex(size_t astrIdx) = 0;
+		    std::pair<OBJHANDLE, const AstrInfo*> GetAstrInfoByIndex(size_t astrIdx);
 
 			/**
 			 * @brief Gets an astronaut information by the astronaut handle.
 			 * @param hAstr The astronaut vessel handle.
 			 * @return A pointer to the astronaut AstrInfo struct, or nullptr if hAstr is invalid or not an astronaut.
 			*/
-			virtual const AstrInfo* GetAstrInfoByHandle(OBJHANDLE hAstr) = 0;
+			const AstrInfo* GetAstrInfoByHandle(OBJHANDLE hAstr);
 
 			/**
 			 * @brief Gets a vessel astronaut information by the vessel handle.
 			 * @param hVessel The vessel handle.
 			 * @return A pointer to the vessel VslAstrInfo struct, or nullptr if hVessel is invalid or not an astronaut.
 			*/
-			virtual const VslAstrInfo* GetVslAstrInfo(OBJHANDLE hVessel) = 0;
+			const VslAstrInfo* GetVslAstrInfo(OBJHANDLE hVessel);
 
 			/**
 			 * @brief Sets a scenario astronaut information by the astronaut index.
@@ -280,7 +276,7 @@ namespace UACS
 			 * @param astrIdx The astronaut index. It must be less than GetScnAstrCount.
 			 * @param astrInfo The astronaut information. The astronaut class name must not be changed.
 			*/
-			virtual void SetScnAstrInfoByIndex(size_t astrIdx, AstrInfo astrInfo) = 0;
+			void SetScnAstrInfoByIndex(size_t astrIdx, AstrInfo astrInfo);
 
 			/**
 			 * @brief Sets a scenario astronaut information by the astronaut handle.
@@ -290,7 +286,7 @@ namespace UACS
 			 * @param astrInfo The astronaut information. The astronaut class name must not be changed.
 			 * @return True if hAstr is an astronaut, false if not.
 			*/
-			virtual bool SetScnAstrInfoByHandle(OBJHANDLE hAstr, AstrInfo astrInfo) = 0;
+			bool SetScnAstrInfoByHandle(OBJHANDLE hAstr, AstrInfo astrInfo);
 
 			/**
 			 * @brief Gets the available astronaut count, which is the count of astronauts that can be added.
@@ -298,14 +294,14 @@ namespace UACS
 			 * It's the config file count in 'Config\Vessels\UACS\Astronauts'.
 			 * @return The available cargo count.
 			*/
-			virtual size_t GetAvailAstrCount() = 0;
+			size_t GetAvailAstrCount();
 
 			/**
 			 * @brief Gets the name of an available astronaut.
 			 * @param availIdx The available astronaut index. It must be less than GetAvailAstrCount.
 			 * @return The available astronaut name.
 			*/
-			virtual std::string_view GetAvailAstrName(size_t availIdx) = 0;
+			std::string_view GetAvailAstrName(size_t availIdx);
 
 			/**
 			 * @brief Adds an astronaut with the passed information to the passed station.
@@ -314,7 +310,7 @@ namespace UACS
 			 * @param astrInfo The astronaut information. If nullopt is passed, the astronaut default information in its config file will be used.
 			 * @return The addition result as the IngressResult enum.
 			*/
-			virtual IngressResult AddAstronaut(size_t availIdx, std::optional<size_t> stationIdx = {}, std::optional<AstrInfo> astrInfo = {}) = 0;
+			IngressResult AddAstronaut(size_t availIdx, std::optional<size_t> stationIdx = {}, std::optional<AstrInfo> astrInfo = {});
 
 			/**
 			 * @brief Transfers the astronaut in the passed station to the vessel docked to the docking port associated with the passed airlock.
@@ -323,7 +319,7 @@ namespace UACS
 			 * @param tgtStationIdx The target vessel station index to transfer the astronaut into it. If nullopt is passed, the first empty station will be used.
 			 * @return The transfer result.
 			*/
-			virtual TransferResult TransferAstronaut(size_t stationIdx, size_t airlockIdx, std::optional<size_t> tgtStationIdx = {}) = 0;
+			TransferResult TransferAstronaut(size_t stationIdx, size_t airlockIdx, std::optional<size_t> tgtStationIdx = {});
 
 			/**
 			 * @brief Egresses the astronaut in the passed station via the passed airlock.
@@ -333,33 +329,33 @@ namespace UACS
 			 * @param airlockIdx The airlock index. 
 			 * @return The egress result.
 			*/
-			virtual EgressResult EgressAstronaut(size_t stationIdx, size_t airlockIdx) = 0;
+			EgressResult EgressAstronaut(size_t stationIdx, size_t airlockIdx);
 
 			/**
 			 * @brief Gets cargo count in the scenario.
 			 * @return The cargo count in the scenario.
 			*/
-			virtual size_t GetScnCargoCount() = 0;
+			size_t GetScnCargoCount();
 
 			/**
 			 * @brief Gets a cargo information by the cargo index.
 			 * @param cargoIdx The cargo index. It must be less than GetScnCargoCount.
 			 * @return The cargo information.
 			*/
-			virtual CargoInfo GetCargoInfoByIndex(size_t cargoIdx) = 0;
+			CargoInfo GetCargoInfoByIndex(size_t cargoIdx);
 
 			/**
 			 * @brief Gets a cargo information by the cargo handle.
 			 * @param hCargo The cargo vessel handle.
 			 * @return The cargo information, or nullopt is hCargo is invalid or not a cargo.
 			*/
-			virtual std::optional<CargoInfo> GetCargoInfoByHandle(OBJHANDLE hCargo) = 0;
+			std::optional<CargoInfo> GetCargoInfoByHandle(OBJHANDLE hCargo);
 
 			/**
 			 * @brief Gets the mass of all grappled cargoes.
 			 * @return The mass of all grappled cargoes.
 			*/
-			virtual double GetTotalCargoMass() = 0;
+			double GetTotalCargoMass();
 
 			/**
 			 * @brief Gets the available cargo count, which is the count of cargoes that can be added.
@@ -367,14 +363,14 @@ namespace UACS
 			 * It's the config file count in 'Config\Vessels\UACS\Cargoes'.
 			 * @return The available cargo count.
 			*/
-			virtual size_t GetAvailCargoCount() = 0;
+			size_t GetAvailCargoCount();
 
 			/**
 			 * @brief Gets the name of an available cargo.
 			 * @param availIdx The available cargo index. It must be less than GetAvailCargoCount.
 			 * @return The available cargo name.
 			*/
-			virtual std::string_view GetAvailCargoName(size_t availIdx) = 0;
+			std::string_view GetAvailCargoName(size_t availIdx);
 
 			/**
 			 * @brief Adds the passed available cargo to the passed slot.
@@ -382,14 +378,14 @@ namespace UACS
 			 * @param slotIdx The slot index. If nullopt is passed, the first empty slot will be used.
 			 * @return The addition result as the GrappleResult enum.
 			*/
-			virtual GrappleResult AddCargo(size_t availIdx, std::optional<size_t> slotIdx = {}) = 0;
+			GrappleResult AddCargo(size_t availIdx, std::optional<size_t> slotIdx = {});
 
 			/**
 			 * @brief Deletes the cargo in the passed slot.
 			 * @param slotIdx The slot index. If nullopt is passed, the first occupied slot will be used.
 			 * @return The delete result as the ReleaseResult enum.
 			*/
-			virtual ReleaseResult DeleteCargo(std::optional<size_t> slotIdx = {}) = 0;
+			ReleaseResult DeleteCargo(std::optional<size_t> slotIdx = {});
 
 			/**
 			 * @brief Grapples the passed cargo into the passed slot.
@@ -397,7 +393,7 @@ namespace UACS
 			 * @param slotIdx The slot index. If nullopt is passed, the first empty slot will be used.
 			 * @return The grapple result.
 			*/
-			virtual GrappleResult GrappleCargo(OBJHANDLE hCargo = nullptr, std::optional<size_t> slotIdx = {}) = 0;
+			GrappleResult GrappleCargo(OBJHANDLE hCargo = nullptr, std::optional<size_t> slotIdx = {});
 
 			/**
 			 * @brief Releases the cargo in the passed slot.
@@ -407,21 +403,21 @@ namespace UACS
 			 * @param slotIdx The slot index. If nullopt is passed, the first occupied slot will be used.
 			 * @return The release result. 
 			*/
-			virtual ReleaseResult ReleaseCargo(std::optional<size_t> slotIdx = {}) = 0;
+			ReleaseResult ReleaseCargo(std::optional<size_t> slotIdx = {});
 
 			/**
 			 * @brief Packs the passed cargo.
 			 * @param hCargo The cargo vessel handle. If nullptr is passed, the nearest packable cargo in the packing range will be used.
 			 * @return The packing result.
 			*/
-			virtual PackResult PackCargo(OBJHANDLE hCargo = nullptr) = 0;
+			PackResult PackCargo(OBJHANDLE hCargo = nullptr);
 
 			/**
 			 * @brief Unpacks the passed cargo.
 			 * @param hCargo The cargo vessel handle. If nullptr is passed, the nearest unpackable cargo in the packing range will be used.
 			 * @return The unpacking result as the PackResult enum.
 			*/
-			virtual PackResult UnpackCargo(OBJHANDLE hCargo = nullptr) = 0;
+			PackResult UnpackCargo(OBJHANDLE hCargo = nullptr);
 
 			/**
 			 * @brief Drains the passed resource from the cargo in the passed slot.
@@ -430,7 +426,7 @@ namespace UACS
 			 * @param slotIdx The slot index. If nullopt is passed, the first suitable cargo will be used.
 			 * @return A pair of the drainage result and drained mass. The drained mass will be 0 if no resource was drained.
 			*/
-			virtual std::pair<DrainResult, double> DrainGrappledResource(std::string_view resource, double mass, std::optional<size_t> slotIdx = {}) = 0;
+			std::pair<DrainResult, double> DrainGrappledResource(std::string_view resource, double mass, std::optional<size_t> slotIdx = {});
 
 			/**
 			 * @brief Drains the passed resource from the passed cargo.
@@ -439,7 +435,7 @@ namespace UACS
 			 * @param hCargo The cargo vessel handle. If nullptr is passed, the nearest suitable cargo in the drainage range will be used.
 			 * @return A pair of the drainage result and drained mass. The drained mass will be 0 if no resource was drained.
 			*/
-			virtual std::pair<DrainResult, double> DrainUngrappledResource(std::string_view resource, double mass, OBJHANDLE hCargo = nullptr) = 0;
+			std::pair<DrainResult, double> DrainUngrappledResource(std::string_view resource, double mass, OBJHANDLE hCargo = nullptr);
 
 			/**
 			 * @brief Drains the passed resource from the passed station.
@@ -448,25 +444,11 @@ namespace UACS
 			 * @param hStation The station vessel handle. If nullptr is passed, the nearest suitable station in the drainage range will be used.
 			 * @return A pair of the drainage result and drained mass. The drained mass will be 0 if no resource was drained.
 			*/
-			virtual std::pair<DrainResult, double> DrainStationResource(std::string_view resource, double mass, OBJHANDLE hStation = nullptr) = 0;
+			std::pair<DrainResult, double> DrainStationResource(std::string_view resource, double mass, OBJHANDLE hStation = nullptr);
 
-			/**
-			 * @brief Gets the nearest breathable cargo in the breathable search range.
-			 * @return The nearest breathable cargo, or nullptr if no breathable cargo was found.
-			*/
-			virtual OBJHANDLE GetNearestBreathable() = 0;
-
-			/**
-			 * @brief Determines whether the vessel is in a breathable area.
-			 * 
-			 * The vessel is considered in a breathable area if the distance between the vessel and the nearest breathable cargo is less than the breathable cargo radius.
-			 * @return True if the vessel is in a breathable area, false if not.
-			*/
-			virtual bool InBreathableArea() = 0;
-
-		protected:
-			/// Protected to prevent incorrect initialization. Use CreateInstance instead.
-			Vessel() = default;
+		private:
+			HINSTANCE coreDLL;
+			Core::Vessel* pCoreVessel{};
 		};
 	};
 }

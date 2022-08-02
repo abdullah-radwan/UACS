@@ -12,14 +12,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Common.h" />
-    <ClInclude Include="AstronautImpl.h" />
+    <ClInclude Include="Astronaut.h" />
     <ClInclude Include="CoreCommon.h" />
     <ClInclude Include="CoreDefs.h" />
-    <ClInclude Include="VesselImpl.h" />
+    <ClInclude Include="Vessel.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AstronautImpl.cpp" />
-    <ClCompile Include="VesselImpl.cpp" />
+    <ClCompile Include="Astronaut.cpp" />
+    <ClCompile Include="Vessel.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

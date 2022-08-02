@@ -49,7 +49,7 @@ namespace UACS
 			bool suitOn{ true };
 			double consumptionRate{ 1 };
 
-			std::unique_ptr<API::Vessel> pVslAPI;
+			API::Vessel pVslAPI;
 			API::VslCargoInfo vslCargoInfo;
 			SpotLight* spotLight1{};
 			SpotLight* spotLight2{};

@@ -38,14 +38,15 @@ private:
 	static MGROUP_ROTATE trans_Laileron, trans_Raileron;
 	static MGROUP_ROTATE trans_Lelevator, trans_Relevator;
 
-	std::unique_ptr<UACS::API::Vessel> uacs;
+	UACS::API::Vessel uacs;
 	UACS::API::VslAstrInfo astrInfo;
 	UACS::API::VslCargoInfo cargoInfo;
 
-	size_t astrIdx{}, cargoIdx{};  // For the cargo selection on the HUD
-	char buffer[256];    // To draw on the HUD
-	const char* message{}; // To show messages on the HUD
-	double timer{};    // To show the messages for 5 seconds on the HUD
+	size_t astrIdx{}, cargoIdx{};
+	char buffer[256];
+	const char* astrMsg{};
+	const char* cargoMsg{};	
+	double astrTimer{ 5 }, cargoTimer{};
 
 	void SetStatusLanded();
 

@@ -14,7 +14,7 @@ namespace UACS
 
 		inline std::unordered_map<OBJHANDLE, API::VslAstrInfo*> vslAstrMap;
 
-		inline std::string_view GetUACSVersion() { return "Alpha 4"; }
+		inline std::string_view GetUACSVersion() { return "Alpha 5"; }
 
 		inline size_t GetScnAstrCount() { return astrVector.size(); }
 
@@ -28,14 +28,14 @@ namespace UACS
 		{
 			auto astrIt = std::ranges::find_if(astrVector, [hAstr](API::Astronaut* pAstr) { return pAstr->GetHandle() == hAstr; });
 
-			return astrIt == astrVector.end() ? nullptr : (*astrIt)->clbkGetAstrInfo();
+			return (astrIt == astrVector.end()) ? nullptr : (*astrIt)->clbkGetAstrInfo();
 		}
 
 		inline const API::VslAstrInfo* GetVslAstrInfo(OBJHANDLE hVessel)
 		{
 			const auto& vslPair = vslAstrMap.find(hVessel);
 
-			return vslPair == vslAstrMap.end() ? nullptr : vslPair->second;
+			return (vslPair == vslAstrMap.end()) ? nullptr : vslPair->second;
 		}
 
 		inline void SetScnAstrInfoByIndex(size_t astrIdx, API::AstrInfo astrInfo) { astrVector.at(astrIdx)->clbkSetAstrInfo(astrInfo); }
@@ -59,7 +59,7 @@ namespace UACS
 
 			if (stationIt == stations.end()) return {};
 
-			return stationIt - stations.begin();
+			return std::distance(stations.begin(), stationIt);
 		}
 	}
 }

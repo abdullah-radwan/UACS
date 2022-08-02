@@ -1,36 +1,36 @@
-#include "AstronautImpl.h"
+#include "CoreCommon.h"
 
 #include <map>
 
-DLLCLBK UACS::Core::Astronaut* CreateAstronaut(UACS::API::Astronaut* pAstr) { return new UACS::Core::AstronautImpl(pAstr); }
+DLLCLBK UACS::Core::Astronaut* CreateAstronaut(UACS::API::Astronaut* pAstr) { return new UACS::Core::Astronaut(pAstr); }
 
 namespace UACS
 {
 	namespace Core
 	{
-		AstronautImpl::AstronautImpl(API::Astronaut* pAstr) : pAstr(pAstr) { astrVector.push_back(pAstr); }
+		Astronaut::Astronaut(API::Astronaut* pAstr) : pAstr(pAstr) { astrVector.push_back(pAstr); }
 
-		void AstronautImpl::Destroy() noexcept
+		void Astronaut::Destroy() noexcept
 		{
 			std::erase(astrVector, pAstr);
 			delete this;
 		}
 
-		std::string_view AstronautImpl::GetUACSVersion() { return Core::GetUACSVersion(); }
+		std::string_view Astronaut::GetUACSVersion() { return Core::GetUACSVersion(); }
 
-		size_t AstronautImpl::GetScnAstrCount() { return Core::GetScnAstrCount(); }
+		size_t Astronaut::GetScnAstrCount() { return Core::GetScnAstrCount(); }
 
-		std::pair<OBJHANDLE, const API::AstrInfo*> AstronautImpl::GetAstrInfoByIndex(size_t astrIdx) { return Core::GetAstrInfoByIndex(astrIdx); }
+		std::pair<OBJHANDLE, const API::AstrInfo*> Astronaut::GetAstrInfoByIndex(size_t astrIdx) { return Core::GetAstrInfoByIndex(astrIdx); }
 
-		const API::AstrInfo* AstronautImpl::GetAstrInfoByHandle(OBJHANDLE hAstr) { return Core::GetAstrInfoByHandle(hAstr); }
+		const API::AstrInfo* Astronaut::GetAstrInfoByHandle(OBJHANDLE hAstr) { return Core::GetAstrInfoByHandle(hAstr); }
 
-		const API::VslAstrInfo* AstronautImpl::GetVslAstrInfo(OBJHANDLE hVessel) { return Core::GetVslAstrInfo(hVessel); }
+		const API::VslAstrInfo* Astronaut::GetVslAstrInfo(OBJHANDLE hVessel) { return Core::GetVslAstrInfo(hVessel); }
 
-		void AstronautImpl::SetScnAstrInfoByIndex(size_t astrIdx, API::AstrInfo astrInfo) { Core::SetScnAstrInfoByIndex(astrIdx, astrInfo); }
+		void Astronaut::SetScnAstrInfoByIndex(size_t astrIdx, API::AstrInfo astrInfo) { Core::SetScnAstrInfoByIndex(astrIdx, astrInfo); }
 
-		bool AstronautImpl::SetScnAstrInfoByHandle(OBJHANDLE hAstr, API::AstrInfo astrInfo) { return Core::SetScnAstrInfoByHandle(hAstr, astrInfo); }
+		bool Astronaut::SetScnAstrInfoByHandle(OBJHANDLE hAstr, API::AstrInfo astrInfo) { return Core::SetScnAstrInfoByHandle(hAstr, astrInfo); }
 
-		std::optional<API::NearestAirlock> AstronautImpl::GetNearestAirlock(double range)
+		std::optional<API::NearestAirlock> Astronaut::GetNearestAirlock(double range)
 		{
 			API::NearestAirlock nearAirlock;
 			API::VslAstrInfo* nearVslInfo;
@@ -96,7 +96,75 @@ namespace UACS
 			return nearAirlock;
 		}
 
-		API::IngressResult AstronautImpl::Ingress(OBJHANDLE hVessel, std::optional<size_t> airlockIdx, std::optional<size_t> stationIdx)
+		std::pair<OBJHANDLE, VECTOR3> Astronaut::GetNearestBreathable(double range)
+		{
+			OBJHANDLE hNearest{};
+			VECTOR3 nearestPos{};
+
+			for (size_t idx{}; idx < oapiGetVesselCount(); ++idx)
+			{
+				VESSEL* pTarget = oapiGetVesselInterface(oapiGetVesselByIndex(idx));
+
+				int attachIdx = int(pTarget->AttachmentCount(true)) - 1;
+
+				if (attachIdx < 0 || !std::strncmp(pTarget->GetClassNameA(), "UACS", 4)) continue;
+
+				const char* attachLabel = pTarget->GetAttachmentId(pTarget->GetAttachmentHandle(true, attachIdx));
+
+				if (!attachLabel || (std::strcmp(attachLabel, "UACS_B") && std::strcmp(attachLabel, "UACS_BS"))) continue;
+
+				VECTOR3 targetPos;
+				pAstr->GetRelativePos(pTarget->GetHandle(), targetPos);
+				const double distance = length(targetPos);
+
+				if (passCheck)
+				{
+					if (distance <= pTarget->GetSize()) return { pTarget->GetHandle(), targetPos };
+					continue;
+				}
+
+				if (distance >= range) continue;
+
+				hNearest = pTarget->GetHandle();
+				nearestPos = targetPos;
+				range = distance;
+			}
+
+			for (API::Cargo* pCargo : cargoVector)
+			{
+				auto cargoInfo = pCargo->clbkGetCargoInfo();
+				if (!cargoInfo->breathable || !cargoInfo->unpacked) continue;
+
+				VECTOR3 cargoPos;
+				pAstr->GetRelativePos(pCargo->GetHandle(), cargoPos);
+				const double distance = length(cargoPos);
+
+				if (passCheck)
+				{
+					if (distance <= pCargo->GetSize()) return { pCargo->GetHandle(), cargoPos };
+					continue;
+				}
+
+				if (distance >= range) continue;
+
+				hNearest = pCargo->GetHandle();
+				nearestPos = cargoPos;
+				range = distance;
+			}
+
+			return { hNearest, nearestPos };
+		}
+
+		bool Astronaut::InBreathableArea()
+		{
+			passCheck = true;
+			auto result = GetNearestBreathable(0);
+			passCheck = false;
+
+			return result.first;
+		}
+
+		API::IngressResult Astronaut::Ingress(OBJHANDLE hVessel, std::optional<size_t> airlockIdx, std::optional<size_t> stationIdx)
 		{
 			if (hVessel)
 			{

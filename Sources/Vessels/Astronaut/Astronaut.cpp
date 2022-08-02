@@ -36,7 +36,7 @@ namespace UACS
 			else oapiWriteLog("UACS astronaut warning: Couldn't load the configurations file, will use the default configurations");
 		}
 
-		Astronaut::Astronaut(OBJHANDLE hVessel, int fModel) : API::Astronaut(hVessel, fModel), pVslAPI(API::Vessel::CreateInstance(this, nullptr, &vslCargoInfo))
+		Astronaut::Astronaut(OBJHANDLE hVessel, int fModel) : API::Astronaut(hVessel, fModel), pVslAPI(this, nullptr, &vslCargoInfo)
 		{
 			if (!configLoaded) LoadConfig();
 
@@ -51,7 +51,6 @@ namespace UACS
 			hudInfo.deadFont = oapiCreateFont(50, true, "Courier New");
 
 			vslCargoInfo.astrMode = true;
-			vslCargoInfo.breathableRange = maxNearestRange;
 			vslCargoInfo.grappleRange = 5;
 			vslCargoInfo.relVel = 0;
 			vslCargoInfo.relRowCount = 1;
@@ -185,7 +184,7 @@ namespace UACS
 
 			SetSuit(suitOn, false);
 
-			pVslAPI->clbkPostCreation();
+			pVslAPI.clbkPostCreation();
 
 			if (!astrInfo.alive) Kill();
 		}
@@ -221,7 +220,7 @@ namespace UACS
 			case HUD_VSL:
 				if (key == OAPI_KEY_NUMPAD6 || key == OAPI_KEY_NUMPAD4)
 				{
-					if (oapiGetVesselCount() - pVslAPI->GetScnCargoCount() > 1)
+					if (oapiGetVesselCount() - pVslAPI.GetScnCargoCount() > 1)
 					{
 						do
 						{
@@ -229,7 +228,7 @@ namespace UACS
 							else hudInfo.vslIdx > 0 ? --hudInfo.vslIdx : hudInfo.vslIdx = oapiGetVesselCount() - 1;
 
 							hudInfo.hVessel = oapiGetVesselByIndex(hudInfo.vslIdx);
-						} while (hudInfo.hVessel == GetHandle() || pVslAPI->GetCargoInfoByHandle(hudInfo.hVessel));
+						} while (hudInfo.hVessel == GetHandle() || pVslAPI.GetCargoInfoByHandle(hudInfo.hVessel));
 
 						hudInfo.vslInfo = HudInfo::VesselInfo();
 					}
@@ -266,14 +265,14 @@ namespace UACS
 				case OAPI_KEY_NUMPAD6:
 				case OAPI_KEY_NUMPAD4:
 				{
-					if (pVslAPI->GetScnAstrCount() - 1)
+					if (GetScnAstrCount() - 1)
 					{
 						do
 						{
-							if (key == OAPI_KEY_NUMPAD6) hudInfo.vslIdx < pVslAPI->GetScnAstrCount() - 1 ? ++hudInfo.vslIdx : hudInfo.vslIdx = 0;
-							else hudInfo.vslIdx > 0 ? --hudInfo.vslIdx : hudInfo.vslIdx = pVslAPI->GetScnAstrCount() - 2;
+							if (key == OAPI_KEY_NUMPAD6) hudInfo.vslIdx < GetScnAstrCount() - 1 ? ++hudInfo.vslIdx : hudInfo.vslIdx = 0;
+							else hudInfo.vslIdx > 0 ? --hudInfo.vslIdx : hudInfo.vslIdx = GetScnAstrCount() - 2;
 
-							hudInfo.hVessel = pVslAPI->GetAstrInfoByIndex(hudInfo.vslIdx).first;
+							hudInfo.hVessel = GetAstrInfoByIndex(hudInfo.vslIdx).first;
 						} while (hudInfo.hVessel == GetHandle());
 					}
 
@@ -281,11 +280,11 @@ namespace UACS
 				}
 
 				case OAPI_KEY_NUMPAD8:
-					hudInfo.availIdx + 1 < pVslAPI->GetAvailCargoCount() ? ++hudInfo.availIdx : hudInfo.availIdx = 0;
+					hudInfo.availIdx + 1 < pVslAPI.GetAvailCargoCount() ? ++hudInfo.availIdx : hudInfo.availIdx = 0;
 					return 1;
 
 				case OAPI_KEY_NUMPAD2:
-					hudInfo.availIdx > 0 ? --hudInfo.availIdx : hudInfo.availIdx = pVslAPI->GetAvailCargoCount() - 1;
+					hudInfo.availIdx > 0 ? --hudInfo.availIdx : hudInfo.availIdx = pVslAPI.GetAvailCargoCount() - 1;
 					return 1;
 				}
 
@@ -301,26 +300,26 @@ namespace UACS
 				case OAPI_KEY_NUMPAD6:
 				case OAPI_KEY_NUMPAD4:
 				{
-					if (pVslAPI->GetScnCargoCount() && GetFirstVslIdx())
+					if (pVslAPI.GetScnCargoCount() && GetFirstVslIdx())
 					{
 						do
 						{
-							if (key == OAPI_KEY_NUMPAD6) hudInfo.vslIdx + 1 < pVslAPI->GetScnCargoCount() ? ++hudInfo.vslIdx : hudInfo.vslIdx = 0;
-							else hudInfo.vslIdx > 0 ? --hudInfo.vslIdx : hudInfo.vslIdx = pVslAPI->GetScnCargoCount() - 1;
-						} while (pVslAPI->GetCargoInfoByIndex(hudInfo.vslIdx).attached);
+							if (key == OAPI_KEY_NUMPAD6) hudInfo.vslIdx + 1 < pVslAPI.GetScnCargoCount() ? ++hudInfo.vslIdx : hudInfo.vslIdx = 0;
+							else hudInfo.vslIdx > 0 ? --hudInfo.vslIdx : hudInfo.vslIdx = pVslAPI.GetScnCargoCount() - 1;
+						} while (pVslAPI.GetCargoInfoByIndex(hudInfo.vslIdx).attached);
 
-						hudInfo.hVessel = pVslAPI->GetCargoInfoByIndex(hudInfo.vslIdx).handle;
+						hudInfo.hVessel = pVslAPI.GetCargoInfoByIndex(hudInfo.vslIdx).handle;
 					}
 
 					return 1;
 				}
 
 				case OAPI_KEY_NUMPAD8:
-					hudInfo.availIdx + 1 < pVslAPI->GetAvailCargoCount() ? ++hudInfo.availIdx : hudInfo.availIdx = 0;
+					hudInfo.availIdx + 1 < pVslAPI.GetAvailCargoCount() ? ++hudInfo.availIdx : hudInfo.availIdx = 0;
 					return 1;
 
 				case OAPI_KEY_NUMPAD2:
-					hudInfo.availIdx > 0 ? --hudInfo.availIdx : hudInfo.availIdx = pVslAPI->GetAvailCargoCount() - 1;
+					hudInfo.availIdx > 0 ? --hudInfo.availIdx : hudInfo.availIdx = pVslAPI.GetAvailCargoCount() - 1;
 					return 1;
 
 				case OAPI_KEY_T:
@@ -328,7 +327,7 @@ namespace UACS
 					return 1;
 
 				case OAPI_KEY_A:
-					switch (pVslAPI->AddCargo(hudInfo.availIdx))
+					switch (pVslAPI.AddCargo(hudInfo.availIdx))
 					{
 					case API::GRPL_SUCCED:
 						hudInfo.modeMsg = "Success: Selected available cargo added.";
@@ -347,7 +346,7 @@ namespace UACS
 					return 1;
 				
 				case OAPI_KEY_D:
-					switch (pVslAPI->DeleteCargo())
+					switch (pVslAPI.DeleteCargo())
 					{
 					case API::RLES_SUCCED:
 						hudInfo.modeMsg = "Success: Grappled cargo deleted.";
@@ -366,7 +365,7 @@ namespace UACS
 					return 1;
 
 				case OAPI_KEY_G:
-					switch (pVslAPI->GrappleCargo(hCargo))
+					switch (pVslAPI.GrappleCargo(hCargo))
 					{
 					case API::GRPL_SUCCED:
 						if (hCargo) hudInfo.modeMsg = "Success: Selected cargo grappled.";
@@ -391,7 +390,7 @@ namespace UACS
 					return 1;
 
 				case OAPI_KEY_R:
-					switch (pVslAPI->ReleaseCargo())
+					switch (pVslAPI.ReleaseCargo())
 					{
 					case API::RLES_SUCCED:
 						hudInfo.modeMsg = "Success: Grappled cargo released.";
@@ -414,7 +413,7 @@ namespace UACS
 					return 1;
 
 				case OAPI_KEY_P:
-					switch (pVslAPI->PackCargo(hCargo))
+					switch (pVslAPI.PackCargo(hCargo))
 					{
 					case API::PACK_SUCCED:
 						if (hCargo) hudInfo.modeMsg = "Success: Selected cargo packed.";
@@ -443,7 +442,7 @@ namespace UACS
 					return 1;
 
 				case OAPI_KEY_U:
-					switch (pVslAPI->UnpackCargo(hCargo))
+					switch (pVslAPI.UnpackCargo(hCargo))
 					{
 					case API::PACK_SUCCED:
 						if (hCargo) hudInfo.modeMsg = "Success: Selected cargo unpacked.";
@@ -481,9 +480,9 @@ namespace UACS
 
 					if (reqMass)
 					{
-						auto drainInfo = pVslAPI->DrainGrappledResource(resource, reqMass);
+						auto drainInfo = pVslAPI.DrainGrappledResource(resource, reqMass);
 
-						if (drainInfo.first != API::DRIN_SUCCED) drainInfo = pVslAPI->DrainUngrappledResource(resource, reqMass, hCargo);
+						if (drainInfo.first != API::DRIN_SUCCED) drainInfo = pVslAPI.DrainUngrappledResource(resource, reqMass, hCargo);
 
 						switch (drainInfo.first)
 						{
@@ -497,10 +496,6 @@ namespace UACS
 						case UACS::API::DRIN_NOT_IN_RNG:
 							if (hCargo) hudInfo.modeMsg = "Error: Selected cargo out of range.";
 							else hudInfo.modeMsg = "Error: No resource cargo in range.";
-							break;
-
-						case UACS::API::DRIN_NOT_RES:
-							hudInfo.modeMsg = "Error: Selected cargo not a resource.";
 							break;
 
 						case UACS::API::DRIN_RES_NOMATCH:
@@ -685,7 +680,7 @@ namespace UACS
 
 		bool Astronaut::clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp)
 		{
-			int x = 5;
+			int x = 10;
 			int y = int(0.215 * hps->H);
 
 			if (!astrInfo.alive)
@@ -849,7 +844,7 @@ namespace UACS
 					SetPropellantMass(hOxy, 0);
 					astrInfo.oxyLvl = 0;
 
-					if (InBreathableArea(false)) { pVslAPI->ReleaseCargo(0); SetSuit(false, false); }
+					if (InBreathableArea(false)) { pVslAPI.ReleaseCargo(0); SetSuit(false, false); }
 					else Kill();
 				}
 			}
@@ -1033,7 +1028,7 @@ namespace UACS
 
 		bool Astronaut::InBreathableArea(bool showMessage)
 		{
-			if (pVslAPI->InBreathableArea()) return true;
+			if (API::Astronaut::InBreathableArea()) return true;
 
 			const double pressure = GetAtmPressure();
 			const double temp = GetAtmTemperature();
@@ -1110,22 +1105,35 @@ namespace UACS
 			y = int(0.215 * hps->H);
 			skp->SetTextAlign(oapi::Sketchpad::RIGHT);
 
-			skp->Text(x, y, "Nearest breathable cargo information", 36);
+			skp->Text(x, y, "Nearest breathable vessel information", 37);
 
 			y += 30;
 
-			OBJHANDLE hCargo = pVslAPI->GetNearestBreathable();
+			hudInfo.hVessel = GetNearestBreathable(maxNearestRange).first;
 
-			if (!hCargo) { skp->Text(x, y, "No cargo in range", 17); return; }
+			if (!hudInfo.hVessel) 
+			{ 
+				if (nearAirlock) hudInfo.hVessel = (*nearAirlock).hVessel; 
 
-			DrawCargoInfo(x, y, skp, *(pVslAPI->GetCargoInfoByHandle(hCargo)), false);
+				skp->Text(x, y, "No vessel in range", 18); 
+				return;
+			}
 
-			y += 30;
+			auto cargoInfo = pVslAPI.GetCargoInfoByHandle(hudInfo.hVessel);
+
+			if (cargoInfo)
+			{
+				DrawCargoInfo(x, y, skp, *cargoInfo, false);
+				y += 30;
+			}
 
 			VECTOR3 relPos;
-			oapiGetGlobalPos(hCargo, &relPos);
+			oapiGetGlobalPos(hudInfo.hVessel, &relPos);
 			Global2Local(relPos, relPos);
 			DrawVslInfo(x, y, skp, relPos);
+
+			if (nearAirlock) hudInfo.hVessel = (*nearAirlock).hVessel;
+			else hudInfo.hVessel = nullptr;
 		}
 
 		void Astronaut::DrawVslHUD(int x, int y, oapi::Sketchpad* skp)
@@ -1134,7 +1142,7 @@ namespace UACS
 
 			y += 30;
 
-			size_t vesselCount = oapiGetVesselCount() - pVslAPI->GetScnCargoCount() - 1;
+			size_t vesselCount = oapiGetVesselCount() - pVslAPI.GetScnCargoCount() - 1;
 
 			if (!hudInfo.hVessel)
 			{
@@ -1165,7 +1173,7 @@ namespace UACS
 
 				y += 30;
 
-				if (!!hudInfo.vslInfo.info) skp->Text(x, y, "Selected vessel doesn't support UACS", 36);
+				if (!hudInfo.vslInfo.info) skp->Text(x, y, "Selected vessel doesn't support UACS", 36);
 				else if (!hudInfo.vslInfo.info->stations.size()) skp->Text(x, y, "No station defined for selected vessel", 38);
 				else if (!hudInfo.vslInfo.info->airlocks.size()) skp->Text(x, y, "No airlock defined for selected vessel", 38);
 
@@ -1209,9 +1217,9 @@ namespace UACS
 
 			y += 30;
 
-			if (pVslAPI->GetScnAstrCount() - 1)
+			if (GetScnAstrCount() - 1)
 			{
-				buffer = std::format("Astronaut count: {}", pVslAPI->GetScnAstrCount() - 1);
+				buffer = std::format("Astronaut count: {}", GetScnAstrCount() - 1);
 				skp->Text(x, y, buffer.c_str(), buffer.size());
 
 				y += 20;
@@ -1219,7 +1227,7 @@ namespace UACS
 				if (!oapiIsVessel(hudInfo.hVessel))
 				{
 					hudInfo.vslIdx = *GetFirstAstrIdx();
-					hudInfo.hVessel = pVslAPI->GetAstrInfoByIndex(hudInfo.vslIdx).first;
+					hudInfo.hVessel = GetAstrInfoByIndex(hudInfo.vslIdx).first;
 				}
 
 				if (hudInfo.hVessel)
@@ -1238,7 +1246,7 @@ namespace UACS
 					y = int(0.215 * hps->H);
 					skp->SetTextAlign(oapi::Sketchpad::RIGHT);
 
-					DrawAstrInfo(x, y, skp, *pVslAPI->GetAstrInfoByIndex(hudInfo.vslIdx).second);
+					DrawAstrInfo(x, y, skp, *GetAstrInfoByIndex(hudInfo.vslIdx).second);
 				}
 			}
 
@@ -1251,28 +1259,28 @@ namespace UACS
 
 			y += 30;
 
-			if (pVslAPI->GetScnCargoCount())
+			if (pVslAPI.GetScnCargoCount())
 			{
-				buffer = std::format("Cargo count: {}", pVslAPI->GetScnCargoCount());
+				buffer = std::format("Cargo count: {}", pVslAPI.GetScnCargoCount());
 				skp->Text(x, y, buffer.c_str(), buffer.size());
 
 				y += 20;
 
-				if (!oapiIsVessel(hudInfo.hVessel) || pVslAPI->GetCargoInfoByIndex(hudInfo.vslIdx).attached)
+				if (!oapiIsVessel(hudInfo.hVessel) || pVslAPI.GetCargoInfoByIndex(hudInfo.vslIdx).attached)
 				{
 					auto index = GetFirstVslIdx();
 
 					if (index)
 					{
 						hudInfo.vslIdx = *index;
-						hudInfo.hVessel = pVslAPI->GetCargoInfoByIndex(hudInfo.vslIdx).handle;
+						hudInfo.hVessel = pVslAPI.GetCargoInfoByIndex(hudInfo.vslIdx).handle;
 					}
 					else skp->Text(x, y, "No free cargo in scenario", 25);
 				}
 
 				if (hudInfo.hVessel)
 				{
-					DrawCargoInfo(x, y, skp, pVslAPI->GetCargoInfoByIndex(hudInfo.vslIdx), true);
+					DrawCargoInfo(x, y, skp, pVslAPI.GetCargoInfoByIndex(hudInfo.vslIdx), true);
 
 					y += 30;
 
@@ -1295,7 +1303,7 @@ namespace UACS
 				y += 30;
 			}
 
-			buffer = std::format("Selected cargo to add: {}", pVslAPI->GetAvailCargoName(hudInfo.availIdx).data());
+			buffer = std::format("Selected cargo to add: {}", pVslAPI.GetAvailCargoName(hudInfo.availIdx).data());
 			skp->Text(x, y, buffer.c_str(), buffer.size());
 
 			y += 20;
@@ -1316,7 +1324,7 @@ namespace UACS
 		void Astronaut::DrawShort1HUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp)
 		{
 			skp->Text(x, y, "General shortcuts", 17);
-			y += 20;
+			y += 30;
 
 			skp->Text(x, y, "Alt + M: Change HUD mode", 24);
 			y += 20;
@@ -1324,14 +1332,32 @@ namespace UACS
 			skp->Text(x, y, "Alt + S: Toggle suit", 20);
 			y += 20;
 
-			if (!headlights.empty()) skp->Text(x, y, "Alt + L: Toggle Headlight", 25);
+			if (!headlights.empty()) { skp->Text(x, y, "Alt + L: Toggle Headlight", 25); y += 20; }
+			y += 10;
+
+			skp->Text(x, y, "Numpad 8: Move forward", 22);
+			y += 20;
+
+			skp->Text(x, y, "Numpad 2: Move backward", 23);
+			y += 20;
+
+			skp->Text(x, y, "Numpad 6: Turn right", 20);
+			y += 20;
+
+			skp->Text(x, y, "Numpad 4: Turn left", 19);
+			y += 20;
+
+			skp->Text(x, y, "Numpad 3: Move right", 20);
+			y += 20;
+
+			skp->Text(x, y, "Numpad 1: Move left", 19);
 
 			x = hps->W - 10;
 			y = int(0.215 * hps->H);
 			skp->SetTextAlign(oapi::Sketchpad::RIGHT);
 
 			skp->Text(x, y, "Nearest & Vessel HUD shortcuts", 30);
-			y += 20;
+			y += 30;
 
 			skp->Text(x, y, "Alt + Numpad 8: Select next station", 35);
 			y += 20;
@@ -1343,7 +1369,7 @@ namespace UACS
 
 			y += 30;
 			skp->Text(x, y, "Vessel information HUD shortcuts", 32);
-			y += 20;
+			y += 30;
 
 			skp->Text(x, y, "Alt + Numpad 6: Select next vessel", 34);
 			y += 20;
@@ -1360,7 +1386,7 @@ namespace UACS
 		void Astronaut::DrawShort2HUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp)
 		{
 			skp->Text(x, y, "Cargo information HUD shortcuts", 31);
-			y += 20;
+			y += 30;
 
 			skp->Text(x, y, "Alt + Numpad 6: Select next scenario cargo", 42);
 			y += 20;
@@ -1532,22 +1558,22 @@ namespace UACS
 
 		std::optional<size_t> Astronaut::GetFirstVslIdx()
 		{
-			for (size_t idx{}; idx < oapiGetVesselCount(); ++idx) if (!pVslAPI->GetCargoInfoByHandle(oapiGetVesselByIndex(idx))) return idx;
+			for (size_t idx{}; idx < oapiGetVesselCount(); ++idx) if (!pVslAPI.GetCargoInfoByHandle(oapiGetVesselByIndex(idx))) return idx;
 
 			return {};
 		}
 
 		std::optional<size_t> Astronaut::GetFirstAstrIdx()
 		{
-			for (size_t idx{}; idx < pVslAPI->GetScnAstrCount(); ++idx) if (pVslAPI->GetAstrInfoByIndex(idx).first != GetHandle()) return idx;
+			for (size_t idx{}; idx < GetScnAstrCount(); ++idx) if (GetAstrInfoByIndex(idx).first != GetHandle()) return idx;
 
 			return {};
 		}
 
 		std::optional<size_t> Astronaut::GetFirstCargoIdx()
 		{
-			for (size_t idx{}; idx < pVslAPI->GetScnCargoCount(); ++idx)
-				if (!pVslAPI->GetCargoInfoByIndex(idx).attached) return idx;
+			for (size_t idx{}; idx < pVslAPI.GetScnCargoCount(); ++idx)
+				if (!pVslAPI.GetCargoInfoByIndex(idx).attached) return idx;
 
 			return {};
 		}
