@@ -22,7 +22,7 @@ namespace UACS
 			if (hConfig)
 			{
 				if (!oapiReadItem_bool(hConfig, "EnableFocus", enableFocus))
-					oapiWriteLog("UACS cargo warning: Couldn't read EnableFocus setting, will use the default value (FALSE)");
+					oapiWriteLog("UACS cargo warning: Couldn't read EnableFocus setting, will use default value (FALSE)");
 
 				oapiCloseFile(hConfig, FILE_IN_ZEROONFAIL);
 			}
