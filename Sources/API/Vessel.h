@@ -32,7 +32,14 @@ namespace UACS
 		struct SlotInfo
 		{
 			ATTACHMENTHANDLE hAttach;
+
 			bool open{ true };
+
+			/// The cargo release velocity (if released in space) in meters per second.
+			double relVel{};
+
+			/// The slot ground release information.
+			GroundInfo gndInfo{};
 
 			std::optional<CargoInfo> cargoInfo{};
 		};
@@ -53,12 +60,6 @@ namespace UACS
 
 			/// The cargo grapple range in meters.
 			double grappleRange{ 50 };
-
-			/// The cargo release velocity if released in space in meters.
-			double relVel{ 0.05 };
-
-			/// The cargo count in a single row when released on ground. Not applicable when astronaut mode is activated.
-			size_t relRowCount{ 4 };
 
 			/// The search range for packable and unpackable cargoes in meters.
 			double packRange{ 50 };

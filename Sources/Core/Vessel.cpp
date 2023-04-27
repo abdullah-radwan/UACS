@@ -74,7 +74,7 @@ namespace UACS
 
 			if (data == "ASTR_ROLE") { ss >> data; pLoadAstrInfo->role = data; return true; }
 
-			if (data == "ASTR_MASS") { ss >> data; pLoadAstrInfo->mass = std::stoi(data); return true; }
+			if (data == "ASTR_MASS") { ss >> data; pLoadAstrInfo->mass = std::stod(data); return true; }
 
 			if (data == "ASTR_OXYGEN") { ss >> data; pLoadAstrInfo->oxyLvl = std::stod(data); return true; }
 
@@ -148,25 +148,24 @@ namespace UACS
 			{
 				astrInfo = API::AstrInfo();
 
-				const std::string_view className = availAstrVector.at(availIdx);
+				const std::string_view astrName = availAstrVector.at(availIdx);
 
-				std::string configFile = std::format("Vessels\\UACS\\Astronauts\\{}.cfg", className);
+				std::string spawnName = "Astronaut";
+				spawnName += astrName;
+				SetSpawnName(spawnName);
 
-				FILEHANDLE hConfig = oapiOpenFile(configFile.c_str(), FILE_IN_ZEROONFAIL, CONFIG);
+				std::string className = "UACS\\Astronauts\\";
+				className += astrName;
 
-				if (!hConfig) return API::INGRS_FAIL;
+				VESSELSTATUS2 status = GetVesselStatus(pVessel);
 
-				char cBuffer[512];
+				OBJHANDLE hAstr = oapiCreateVesselEx(spawnName.c_str(), className.c_str(), &status);
 
-				if (!oapiReadItem_string(hConfig, "Name", cBuffer)) WarnAndTerminate("name", className.data(), "astronaut");
-				(*astrInfo).name = cBuffer;
+				if (!hAstr) return API::INGRS_FAIL;
 
-				if (!oapiReadItem_string(hConfig, "Role", cBuffer)) WarnAndTerminate("role", className.data(), "astronaut");
-				(*astrInfo).role = cBuffer;
+				astrInfo = *static_cast<API::Astronaut*>(oapiGetVesselInterface(hAstr))->clbkGetAstrInfo();
 
-				if (!oapiReadItem_float(hConfig, "Mass", (*astrInfo).mass)) WarnAndTerminate("mass", className.data(), "astronaut");
-
-				oapiCloseFile(hConfig, FILE_IN_ZEROONFAIL);
+				oapiDeleteVessel(hAstr);
 			}
 
 			(*astrInfo).className = availAstrVector.at(availIdx);
@@ -252,19 +251,36 @@ namespace UACS
 
 			VESSELSTATUS2 status = GetVesselStatus(pVessel);
 
-			if (pVessel->GetFlightStatus())
+			if (status.status)
 			{
-				status.status = 1;
+				VECTOR3 egressPos = airlockInfo.gndInfo.pos ? *airlockInfo.gndInfo.pos : airlockInfo.pos;
+				if (!SetGroundPos<API::Astronaut>(status, egressPos, airlockInfo.gndInfo, astrVector)) return API::EGRS_NO_EMPTY_POS;
 
-				VECTOR3 egressPos = airlockInfo.pos;
-				if (!GetNearestAstrEmptyPos(egressPos)) return API::EGRS_NO_EMPTY_POS;
-
-				pVessel->HorizonRot(egressPos, egressPos);
-
-				SetGroundRotation(status, egressPos.z, egressPos.x, GetAstrHeight((*astrInfo).className));
+				SetGroundRotation(status, (*astrInfo).height, egressPos.x, egressPos.z);
 			}
 
-			else pVessel->Local2Rel(airlockInfo.pos, status.rpos);
+			else 
+			{
+				pVessel->Local2Rel(airlockInfo.pos, status.rpos);
+
+				VECTOR3 xRight, yUp, zForward;
+
+				// Convert to global frame
+				pVessel->GlobalRot(airlockInfo.rot, xRight);
+				pVessel->GlobalRot(airlockInfo.dir, zForward);
+
+				// Get Y axis by taking cross product
+				yUp = crossp(zForward, xRight); normalise(yUp);
+
+				// Global vector to Euler angle conversion
+				double alpha = atan2(zForward.y, zForward.z);
+				double beta = -asin(zForward.x);
+				double gamma = atan2(xRight.x, yUp.x);				
+
+				status.arot = { alpha, beta, PI05 - gamma };
+
+				status.rvel += zForward * airlockInfo.relVel;
+			}
 
 			std::istringstream ss;
 			ss.str((*astrInfo).name);
@@ -288,92 +304,6 @@ namespace UACS
 			astrInfo = {};
 
 			return API::EGRS_SUCCEDED;
-		}
-
-		std::vector<VECTOR3> Vessel::GetNearbyAstrs(const VECTOR3& airlockPos)
-		{
-			std::vector<VECTOR3> nearbyVector;
-
-			for (const API::Astronaut* pAstr : astrVector)
-			{
-				if (!pAstr->GroundContact()) continue;
-
-				VECTOR3 astrPos;
-				pVessel->Local2Global(airlockPos, astrPos);
-				pAstr->Global2Local(astrPos, astrPos);
-
-				astrPos.x = -astrPos.x;
-				astrPos.y = -astrPos.y;
-				astrPos.z = -astrPos.z;
-
-				// If the astronaut is within the release distance (1 meters) plus the column length (10 meters)
-				// And the astronaut is lower than or equal to the row length
-				if (astrPos.z <= 11 && astrPos.z >= 3.5 && astrPos.x <= 4) nearbyVector.push_back(astrPos);
-			}
-
-			return nearbyVector;
-		}
-
-		bool Vessel::GetNearestAstrEmptyPos(VECTOR3& initialPos)
-		{
-			std::vector<VECTOR3> nearbyVector = GetNearbyAstrs(initialPos);
-
-			// Add the release distance
-			initialPos.z += 1;
-
-			double length{};
-
-			VECTOR3 relPos = initialPos;
-
-		loop:
-			for (const VECTOR3& astrPos : nearbyVector)
-			{
-				// Orbiter SDK function length isn't used, as the elevetion (Y-axis) doesn't matter here
-				VECTOR3 subtract = relPos - astrPos;
-
-				// Proceed if the distance is lower than 1.5 meter
-				if (sqrt(subtract.x * subtract.x + subtract.z * subtract.z) >= 0.5) continue;
-
-				// Reset the position to the initial position
-				relPos = initialPos;
-
-				// Add 1.5m distance between cargoes
-				length += 0.5;
-
-				// If the distance will exceed the column length (which is 6 meters), add new row
-				// Integer division here so only add if it exceeds (otherwise it won't increase)
-				relPos.x += int(length / 6) * 0.5;
-
-				// Don't ask me how I made this, it just works
-				relPos.z += length - (int(length / 6) * 6.0);
-
-				// Run the loop again, as the new positon could interfer with a previous cargo
-				goto loop;
-			}
-
-			// If the availale position is too far
-			if (relPos.x - initialPos.x > 4) return false;
-
-			initialPos = relPos;
-
-			return true;
-		}
-
-		double Vessel::GetAstrHeight(std::string_view className)
-		{
-			std::string configFile = std::format("Vessels\\UACS\\Astronauts\\{}.cfg", className);
-
-			FILEHANDLE hConfig = oapiOpenFile(configFile.c_str(), FILE_IN_ZEROONFAIL, CONFIG);
-
-			if (!hConfig) return 0;
-
-			double height{};
-
-			oapiReadItem_float(hConfig, "Height", height);
-
-			oapiCloseFile(hConfig, FILE_IN_ZEROONFAIL);
-
-			return height;
 		}
 
 		size_t Vessel::GetScnCargoCount() { return cargoVector.size(); }
@@ -489,7 +419,7 @@ namespace UACS
 				pVessel->GetRelativePos(hCargo, cargoPos);
 				cargoPos -= slotPos;
 
-				if ((length(cargoPos) - oapiGetSize(hCargo)) > pVslCargoInfo->grappleRange) return API::GRPL_NOT_IN_RNG;
+				if (length(cargoPos) > pVslCargoInfo->grappleRange + oapiGetSize(hCargo)) return API::GRPL_NOT_IN_RNG;
 
 				if (!pVessel->AttachChild(hCargo, slotInfo.hAttach, cargoInfo->hAttach)) return API::GRPL_FAIL;
 
@@ -517,9 +447,9 @@ namespace UACS
 				pVessel->GetRelativePos(pCargo->GetHandle(), cargoPos);
 				cargoPos -= slotPos;
 
-				const double distance = length(cargoPos) - pCargo->GetSize();
+				const double distance = length(cargoPos);
 
-				if (distance > pVslCargoInfo->grappleRange) continue;
+				if (distance > pVslCargoInfo->grappleRange + pCargo->GetSize()) continue;
 
 				cargoMap[distance] = pCargo;
 			}
@@ -546,37 +476,35 @@ namespace UACS
 
 			if (!slotInfo.open) return API::RLES_SLT_CLSD;
 
-			if (!slotInfo.cargoInfo) return API::RLES_SLT_EMPTY;			
+			if (!slotInfo.cargoInfo) return API::RLES_SLT_EMPTY;
 
 			auto pCargo = static_cast<API::Cargo*>(oapiGetVesselInterface((*slotInfo.cargoInfo).handle));
 
 			if (pVessel->GetFlightStatus())
 			{
+				VECTOR3 relPos;
+
+				if (slotInfo.gndInfo.pos) relPos = *slotInfo.gndInfo.pos;
+
+				else
+				{
+					VECTOR3 slotDir, slotRot;
+					pVessel->GetAttachmentParams(slotInfo.hAttach, relPos, slotDir, slotRot);
+				}
+
 				VESSELSTATUS2 status = GetVesselStatus(pVessel);
 
-				VECTOR3 relPos, slotDir, slotRot;
-				pVessel->GetAttachmentParams(slotInfo.hAttach, relPos, slotDir, slotRot);
+				if (!SetGroundPos<API::Cargo>(status, relPos, slotInfo.gndInfo, cargoVector, pCargo)) return API::RLES_NO_EMPTY_POS;
 
 				auto cargoInfo = pCargo->clbkGetCargoInfo();
 
-				VECTOR3 attachPos;
-				pCargo->GetAttachmentParams(cargoInfo->hAttach, attachPos, slotDir, slotRot);
-				relPos += attachPos;
-
-				if (!GetNearestCargoEmptyPos(relPos)) return API::RLES_NO_EMPTY_POS;
-
-				pVessel->HorizonRot(relPos, relPos);
-
-				if (cargoInfo->frontPos.z || cargoInfo->rightPos.x || cargoInfo->leftPos.x)
-					SetGroundRotation(status, relPos.x, relPos.z, cargoInfo->frontPos, cargoInfo->rightPos, cargoInfo->leftPos);
-
-				else SetGroundRotation(status, relPos.x, relPos.z, abs(cargoInfo->frontPos.y));
+				SetGroundRotation(status, cargoInfo->frontPos, cargoInfo->rightPos, cargoInfo->leftPos, relPos.x, relPos.z);
 
 				if (!pVessel->DetachChild(slotInfo.hAttach)) return API::RLES_FAIL;
 
 				pCargo->DefSetStateEx(&status);
 			}
-			else if (!pVessel->DetachChild(slotInfo.hAttach, pVslCargoInfo->relVel)) return API::RLES_FAIL;
+			else if (!pVessel->DetachChild(slotInfo.hAttach, slotInfo.relVel)) return API::RLES_FAIL;
 
 			pCargo->clbkCargoReleased();
 			slotInfo.cargoInfo = {};
@@ -594,14 +522,14 @@ namespace UACS
 
 				if (!cargoInfo->unpacked) return API::PACK_CRG_PCKD;
 
-				if (cargoInfo->type != API::PACK_UNPACK) return API::PACK_CRG_NOT_PCKABL;
+				if (cargoInfo->type != API::UNPACKABLE || cargoInfo->unpackOnly) return API::PACK_CRG_NOT_PCKABL;
 
 				if (pCargo->GetAttachmentStatus(cargoInfo->hAttach)) return API::PACK_CRG_ATCHD;
 
 				VECTOR3 cargoPos;
 				pVessel->GetRelativePos(hCargo, cargoPos);
 
-				if ((length(cargoPos) - oapiGetSize(hCargo)) > pVslCargoInfo->packRange) return API::PACK_NOT_IN_RNG;
+				if (length(cargoPos) > pVslCargoInfo->packRange + oapiGetSize(hCargo)) return API::PACK_NOT_IN_RNG;
 
 				if (!pCargo->clbkPackCargo()) return API::PACK_FAIL;
 
@@ -614,14 +542,14 @@ namespace UACS
 			{
 				auto cargoInfo = pCargo->clbkGetCargoInfo();
 
-				if (!cargoInfo->unpacked || cargoInfo->type != API::PACK_UNPACK || pCargo->GetAttachmentStatus(cargoInfo->hAttach)) continue;
+				if (!cargoInfo->unpacked || cargoInfo->type != API::UNPACKABLE || cargoInfo->unpackOnly || pCargo->GetAttachmentStatus(cargoInfo->hAttach)) continue;
 
 				VECTOR3 cargoPos;
 				pVessel->GetRelativePos(pCargo->GetHandle(), cargoPos);
 
-				const double distance = length(cargoPos) - pCargo->GetSize();
+				const double distance = length(cargoPos);
 
-				if (distance > pVslCargoInfo->packRange) continue;
+				if (distance > pVslCargoInfo->packRange + pCargo->GetSize()) continue;
 
 				cargoMap[distance] = pCargo;
 			}
@@ -643,16 +571,14 @@ namespace UACS
 
 				if (cargoInfo->unpacked) return API::PACK_CRG_UNPCKD;
 
-				if (cargoInfo->type != API::UNPACK_ONLY && cargoInfo->type != API::PACK_UNPACK) return API::PACK_CRG_NOT_PCKABL;
+				if (cargoInfo->type != API::UNPACKABLE) return API::PACK_CRG_NOT_PCKABL;
 
 				if (pCargo->GetAttachmentStatus(cargoInfo->hAttach)) return API::PACK_CRG_ATCHD;
 
 				VECTOR3 cargoPos;
 				pVessel->GetRelativePos(hCargo, cargoPos);
 
-				const double distance = length(cargoPos) - oapiGetSize(hCargo);
-
-				if (distance > pVslCargoInfo->packRange) return API::PACK_NOT_IN_RNG;
+				if (length(cargoPos) > pVslCargoInfo->packRange + oapiGetSize(hCargo)) return API::PACK_NOT_IN_RNG;
 
 				if (!pCargo->clbkUnpackCargo()) return API::PACK_FAIL;
 
@@ -667,14 +593,14 @@ namespace UACS
 
 				if (cargoInfo->unpacked || pCargo->GetAttachmentStatus(cargoInfo->hAttach)) continue;
 
-				if (cargoInfo->type != API::UNPACK_ONLY && cargoInfo->type != API::PACK_UNPACK) continue;
+				if (cargoInfo->type != API::UNPACKABLE) continue;
 
 				VECTOR3 cargoPos;
 				pVessel->GetRelativePos(pCargo->GetHandle(), cargoPos);
 
-				const double distance = length(cargoPos) - pCargo->GetSize();
+				const double distance = length(cargoPos);
 
-				if (distance > pVslCargoInfo->packRange) continue;
+				if (distance > pVslCargoInfo->packRange + pCargo->GetSize()) continue;
 
 				cargoMap[distance] = pCargo;
 			}
@@ -730,7 +656,7 @@ namespace UACS
 					VECTOR3 cargoPos;
 					pVessel->GetRelativePos(hCargo, cargoPos);
 
-					if ((length(cargoPos) - pCargo->GetSize()) > pVslCargoInfo->drainRange) return { API::DRIN_NOT_IN_RNG, 0 };
+					if (length(cargoPos) > pVslCargoInfo->drainRange + pCargo->GetSize()) return { API::DRIN_NOT_IN_RNG, 0 };
 				}
 
 				return { API::DRIN_SUCCED, pCargo->clbkDrainResource(mass) };
@@ -745,7 +671,7 @@ namespace UACS
 				VECTOR3 cargoPos;
 				pVessel->GetRelativePos(pCargo->GetHandle(), cargoPos);
 
-				if ((length(cargoPos) - pCargo->GetSize()) > pVslCargoInfo->drainRange) continue;
+				if (length(cargoPos) > pVslCargoInfo->drainRange + pCargo->GetSize()) continue;
 
 				return { API::DRIN_SUCCED, pCargo->clbkDrainResource(mass) };
 			}
@@ -770,7 +696,7 @@ namespace UACS
 				VECTOR3 stationPos;
 				pVessel->GetRelativePos(pStation->GetHandle(), stationPos);
 
-				if ((length(stationPos) - pStation->GetSize()) > pVslCargoInfo->drainRange) return { API::DRIN_NOT_IN_RNG, 0 };
+				if (length(stationPos) > pVslCargoInfo->drainRange + pStation->GetSize()) return { API::DRIN_NOT_IN_RNG, 0 };
 
 				if (StationHasResource(pStation, resource)) return { API::DRIN_SUCCED, mass };
 
@@ -792,12 +718,92 @@ namespace UACS
 				VECTOR3 stationPos;
 				pVessel->GetRelativePos(pStation->GetHandle(), stationPos);
 
-				if ((length(stationPos) - pStation->GetSize()) > pVslCargoInfo->drainRange) continue;
+				if (length(stationPos) > pVslCargoInfo->drainRange + pStation->GetSize()) continue;
 
 				if (StationHasResource(pStation, resource)) return { API::DRIN_SUCCED, mass };
 			}
 
 			return { API::DRIN_NOT_IN_RNG, 0 };
+		}
+
+		template<typename T>
+		bool Vessel::SetGroundPos(const VESSELSTATUS2& vslStatus, VECTOR3& initPos, API::GroundInfo gndInfo, std::span<T*> objSpan, const T* pOrgObj)
+		{
+			if (!pVslCargoInfo->astrMode)
+			{
+				if (!gndInfo.colDir || !gndInfo.rowDir)
+				{
+					if (abs(initPos.z) > abs(initPos.x))
+					{
+						gndInfo.colDir = _V((initPos.x < 0 ? -1 : 1), 0, 0);
+						gndInfo.rowDir = _V(0, 0, (initPos.z < 0 ? -1 : 1));
+					}
+					else
+					{
+						gndInfo.colDir = _V(0, 0, (initPos.z < 0 ? -1 : 1));
+						gndInfo.rowDir = _V((initPos.x < 0 ? -1 : 1), 0, 0);
+					}
+				}
+
+				SetGroundDir(*gndInfo.colDir); SetGroundDir(*gndInfo.rowDir);
+			}
+
+			const double bodySize = oapiGetSize(vslStatus.rbody);
+
+			pVessel->HorizonRot(initPos, initPos); initPos /= bodySize;
+			gndInfo.pos = initPos;
+
+			size_t cargoCount{}, colCount{};
+			double spaceMargin = 0.5 * gndInfo.cargoSpace;
+
+		groundPosLoop:
+			for (const T* pObject : objSpan)
+			{
+				if (pObject == pOrgObj) continue;
+
+				auto objStatus = GetVesselStatus(pObject);
+
+				if (!objStatus.status || objStatus.rbody != vslStatus.rbody) continue;
+
+				if (DistLngLat(bodySize, objStatus.surf_lng, objStatus.surf_lat,
+					vslStatus.surf_lng + (*gndInfo.pos).x, vslStatus.surf_lat + (*gndInfo.pos).z) > spaceMargin) continue;
+
+				else if (pVslCargoInfo->astrMode) return false;
+
+				++cargoCount;
+
+				if (cargoCount == gndInfo.cargoCount)
+				{
+					++colCount;
+
+					if (colCount == gndInfo.colCount) return false;
+
+					cargoCount = 0;
+
+					gndInfo.pos = initPos;
+
+					(*gndInfo.pos).x += gndInfo.colSpace * colCount * (*gndInfo.rowDir).x / bodySize;
+					(*gndInfo.pos).z += gndInfo.colSpace * colCount * (*gndInfo.rowDir).z / bodySize;
+				}
+
+				else
+				{
+					(*gndInfo.pos).x += gndInfo.cargoSpace * (*gndInfo.colDir).x / bodySize;
+					(*gndInfo.pos).z += gndInfo.cargoSpace * (*gndInfo.colDir).z / bodySize;
+				}
+
+				goto groundPosLoop;
+			}
+
+			initPos = *gndInfo.pos;
+
+			return true;
+		}
+
+		void Vessel::SetGroundDir(VECTOR3& dir)
+		{
+			pVessel->HorizonRot(dir, dir);
+			dir /= sqrt(dir.x * dir.x + dir.z * dir.z);
 		}
 
 		API::CargoInfo Vessel::SetCargoInfo(API::Cargo* pCargo)
@@ -878,75 +884,6 @@ namespace UACS
 			}
 
 			return pVslCargoInfo->slots.front();
-		}
-
-		std::vector<VECTOR3> Vessel::GetNearbyCargoes(const VECTOR3& slotPos)
-		{
-			std::vector<VECTOR3> nearbyVector;
-
-			for (const API::Cargo* pCargo : cargoVector)
-			{
-				if (!pCargo->GroundContact()) continue;
-
-				VECTOR3 cargoPos;
-				pVessel->Local2Global(slotPos, cargoPos);
-				pCargo->Global2Local(cargoPos, cargoPos);
-
-				cargoPos.x = -cargoPos.x;
-				cargoPos.y = -cargoPos.y;
-				cargoPos.z = -cargoPos.z;
-
-				// If the cargo is within the release distance (5 meters) plus the column length (6 meters)
-				// And the cargo is lower than or equal to the row length
-				if (cargoPos.x <= 11 && cargoPos.x >= 3.5 && cargoPos.z <= pVslCargoInfo->relRowCount) nearbyVector.push_back(cargoPos);
-			}
-
-			return nearbyVector;
-		}
-
-		bool Vessel::GetNearestCargoEmptyPos(VECTOR3& initialPos)
-		{
-			std::vector<VECTOR3> nearbyVector = GetNearbyCargoes(initialPos);
-
-			// Add the release distance
-			if (!pVslCargoInfo->astrMode) initialPos.x += 5;
-
-			double length{};
-
-			VECTOR3 relPos = initialPos;
-
-		loop:
-			for (const VECTOR3& cargoPos : nearbyVector)
-			{
-				// Orbiter SDK function length isn't used, as the elevetion (Y-axis) doesn't matter here
-				VECTOR3 subtract = relPos - cargoPos;
-
-				// Proceed if the distance is lower than 1.5 meter
-				if (sqrt(subtract.x * subtract.x + subtract.z * subtract.z) >= 1.5) continue;
-				else if (pVslCargoInfo->astrMode) return false;
-
-				relPos = initialPos;
-
-				// Add 1.5m distance between cargoes
-				length += 1.5;
-
-				// If the distance will exceed the column length (which is 6 meters), add new row
-				// Integer division here so only add if it exceeds (otherwise it won't increase)
-				relPos.z += int(length / 6) * 1.5;
-
-				// Don't ask me how I made this, it just works
-				relPos.x += length - (int(length / 6) * 6.0);
-
-				// Run the loop again, as the new positon could interfer with a previous cargo
-				goto loop;
-			}
-
-			// If the available position is too far
-			if (relPos.z - initialPos.z > pVslCargoInfo->relRowCount) return false;
-
-			initialPos = relPos;
-
-			return true;
 		}
 	}
 }

@@ -1,12 +1,13 @@
 #pragma once
-#include <OrbiterAPI.h>
+#include <Orbitersdk.h>
 #include <string>
+#include <optional>
 
 namespace UACS
 {
 	inline void WarnAndTerminate(const char* warning, const char* className, const char* type)
 	{
-		oapiWriteLogV("UACS fatal error: The %s of %s %s isn't specified", warning, className, type);
+		oapiWriteLogV("UACS fatal error: The %s of %s %s is NOT specified", warning, className, type);
 
 		std::terminate();
 	}
@@ -30,6 +31,16 @@ namespace UACS
 			// If the spawn name doesn't exists
 			if (!oapiGetVesselByName(spawnName.data())) { name = spawnName; return; }
 		}
+	}
+
+	inline double DistLngLat(double bodySize, double lng1, double lat1, double lng2, double lat2)
+	{
+		double cosA = cos(lng2 - lng1);
+		double slat1 = sin(lat1), clat1 = cos(lat1);
+		double slat2 = sin(lat2), clat2 = cos(lat2);
+		double cosa = slat2 * slat1 + clat2 * clat1 * cosA;
+
+		return acos(cosa) * bodySize;
 	}
 
 	inline MATRIX3 RotationMatrix(VECTOR3 angles)
@@ -56,37 +67,60 @@ namespace UACS
 		status.vrot.x = height;
 	}
 
-	inline void SetGroundRotation(VESSELSTATUS2& status, double lngOffset, double latOffset, double height)
+	inline void SetGroundRotation(VESSELSTATUS2& status, double height, double lngOffset, double latOffset, bool needTrans = false)
 	{
-		const double metersPerDegree = (oapiGetSize(status.rbody) * PI2) / 360;
+		if (needTrans)
+		{
+			const double bodySize = oapiGetSize(status.rbody);
 
-		status.surf_lng += (lngOffset / metersPerDegree) * RAD;
-		status.surf_lat += (latOffset / metersPerDegree) * RAD;
+			status.surf_lng += lngOffset / bodySize;
+			status.surf_lat += latOffset / bodySize;
+		}
+		else
+		{
+			status.surf_lng += lngOffset;
+			status.surf_lat += latOffset;
+		}
 
 		SetGroundRotation(status, height);
 	}
 
-	inline void SetGroundRotation(VESSELSTATUS2& status, double lngOffset, double latOffset, VECTOR3 frontPos, VECTOR3 rightPos, VECTOR3 leftPos)
+	inline void SetGroundRotation(VESSELSTATUS2& status, VECTOR3 frontPos, std::optional<VECTOR3> rightPos, std::optional<VECTOR3> leftPos,
+		double lngOffset = 0, double latOffset = 0, bool needTrans = false)
 	{
-		const double metersPerDegree = (oapiGetSize(status.rbody) * PI2) / 360;
+		if (!rightPos || !leftPos)
+		{
+			SetGroundRotation(status, abs(frontPos.y), lngOffset, latOffset, needTrans);
+			return;
+		}
 
-		status.surf_lng += (lngOffset / metersPerDegree) * RAD;
-		status.surf_lat += (latOffset / metersPerDegree) * RAD;
+		const double bodySize = oapiGetSize(status.rbody);
 
-		const double frontLng = ((frontPos.z * sin(status.surf_hdg)) / metersPerDegree) * RAD;
-		const double frontLat = ((frontPos.z * cos(status.surf_hdg)) / metersPerDegree) * RAD;
+		if (needTrans)
+		{
+			status.surf_lng += lngOffset / bodySize;
+			status.surf_lat += latOffset / bodySize;
+		}
+		else
+		{
+			status.surf_lng += lngOffset;
+			status.surf_lat += latOffset;
+		}
+
+		const double frontLng = (frontPos.z * sin(status.surf_hdg)) / bodySize;
+		const double frontLat = (frontPos.z * cos(status.surf_hdg)) / bodySize;
 		const double frontElev = oapiSurfaceElevation(status.rbody, status.surf_lng + frontLng, status.surf_lat + frontLat);
 
-		const double rightLng = ((rightPos.z * sin(status.surf_hdg) + rightPos.x * cos(status.surf_hdg)) / metersPerDegree) * RAD;
-		const double rightLat = ((rightPos.z * cos(status.surf_hdg) - rightPos.x * sin(status.surf_hdg)) / metersPerDegree) * RAD;
+		const double rightLng = ((*rightPos).z * sin(status.surf_hdg) + (*rightPos).x * cos(status.surf_hdg)) / bodySize;
+		const double rightLat = ((*rightPos).z * cos(status.surf_hdg) - (*rightPos).x * sin(status.surf_hdg)) / bodySize;
 		const double rightElev = oapiSurfaceElevation(status.rbody, status.surf_lng + rightLng, status.surf_lat + rightLat);
 
-		const double leftLng = ((leftPos.z * sin(status.surf_hdg) + leftPos.x * cos(status.surf_hdg)) / metersPerDegree) * RAD;
-		const double leftLat = ((leftPos.z * cos(status.surf_hdg) - leftPos.x * sin(status.surf_hdg)) / metersPerDegree) * RAD;
+		const double leftLng = ((*leftPos).z * sin(status.surf_hdg) + (*leftPos).x * cos(status.surf_hdg)) / bodySize;
+		const double leftLat = ((*leftPos).z * cos(status.surf_hdg) - (*leftPos).x * sin(status.surf_hdg)) / bodySize;
 		const double leftElev = oapiSurfaceElevation(status.rbody, status.surf_lng + leftLng, status.surf_lat + leftLat);
 
-		const double pitchAngle = atan2(((rightElev + leftElev) * 0.5) - frontElev, rightPos.z - frontPos.z);
-		const double rollAngle = -atan2(leftElev - rightElev, leftPos.x - rightPos.x);
+		const double pitchAngle = atan2(((rightElev + leftElev) * 0.5) - frontElev, (*rightPos).z - frontPos.z);
+		const double rollAngle = -atan2(leftElev - rightElev, (*leftPos).x - (*rightPos).x);
 
 		const MATRIX3 rot1 = RotationMatrix({ 0, PI05 - status.surf_lng, 0 });
 		const MATRIX3 rot2 = RotationMatrix({ -status.surf_lat, 0, 0 });

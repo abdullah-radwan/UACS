@@ -28,15 +28,13 @@ namespace UACS
 			struct UnpackMode { enum { RELEASED, DELAYED, LANDED, MANUAL }; };
 
 			inline static bool configLoaded{};
-			inline static double containerMass{ 85 };
 			inline static bool enableFocus{};
 			static void LoadConfig();
 
 			API::Cargo::CargoInfo cargoInfo;
-
 			std::string packedMesh, unpackedMesh;
 
-			double netMass;
+			double payloadMass, contMass;
 			double resContMass{};
 
 			int unpackType;

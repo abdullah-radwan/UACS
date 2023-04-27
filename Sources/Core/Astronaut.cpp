@@ -48,7 +48,7 @@ namespace UACS
 
 				const double distance = length(vesselPos);
 
-				if (distance > nearDistance) continue;
+				if (distance > nearDistance + oapiGetSize(hVessel) || !GetEmptyStationIndex(vesselInfo->stations)) continue;
 
 				found = true;
 
@@ -59,11 +59,7 @@ namespace UACS
 
 			if (!found) return {};
 
-			auto stationIdx = GetEmptyStationIndex(nearVslInfo->stations);
-
-			if (!stationIdx) return {};
-
-			nearAirlock.stationIdx = *stationIdx;
+			nearAirlock.stationIdx = *GetEmptyStationIndex(nearVslInfo->stations);
 
 			nearDistance = range;
 
@@ -72,8 +68,6 @@ namespace UACS
 			for (size_t airlockIdx{}; airlockIdx < nearVslInfo->airlocks.size(); ++airlockIdx)
 			{
 				const auto& airlockInfo = nearVslInfo->airlocks.at(airlockIdx);
-
-				if (!airlockInfo.open) continue;
 
 				VECTOR3 airlockPos;
 				oapiLocalToGlobal(nearAirlock.hVessel, &airlockInfo.pos, &airlockPos);
@@ -123,7 +117,7 @@ namespace UACS
 					continue;
 				}
 
-				if (distance >= range) continue;
+				if (distance >= range + pTarget->GetSize()) continue;
 
 				hNearest = pTarget->GetHandle();
 				nearestPos = targetPos;
@@ -145,7 +139,7 @@ namespace UACS
 					continue;
 				}
 
-				if (distance >= range) continue;
+				if (distance >= range + pCargo->GetSize()) continue;
 
 				hNearest = pCargo->GetHandle();
 				nearestPos = cargoPos;
@@ -207,7 +201,7 @@ namespace UACS
 				const API::AirlockInfo& airlockInfo = airlocks.at(*airlockIdx);
 
 				VECTOR3 airlockPos;
-				pVessel->Local2Global(airlockPos, airlockPos);
+				pVessel->Local2Global(airlockInfo.pos, airlockPos);
 				pAstr->Global2Local(airlockPos, airlockPos);
 
 				if (length(airlockPos) > 10) return API::INGRS_NOT_IN_RNG;
@@ -226,7 +220,12 @@ namespace UACS
 
 			vslAstrMap.at(hVessel)->stations.at(*stationIdx).astrInfo = *pAstr->clbkGetAstrInfo();
 
+			if (VESSEL* pVessel = oapiGetVesselInterface(hVessel); pVessel->Version() >= 3)
+				static_cast<VESSEL3*>(pVessel)->clbkGeneric(API::UACS_MSG, API::INGRS_SUCCED, &(*stationIdx));
+
 			oapiDeleteVessel(pAstr->GetHandle(), hVessel);
+
+			oapiSetFocusObject(hVessel);
 
 			return API::INGRS_SUCCED;
 		}

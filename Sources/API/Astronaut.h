@@ -98,7 +98,7 @@ namespace UACS
 			bool SetScnAstrInfoByHandle(OBJHANDLE hAstr, AstrInfo astrInfo);
 
 			/**
-			 * @brief Gets the nearest open airlock with an empty station in the passed range.
+			 * @brief Gets the nearest airlock with an empty station in the passed range.
 			 * @param range The search range in meters.
 			 * @return The nearest airlock.
 			*/

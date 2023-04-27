@@ -7,6 +7,8 @@ namespace UACS
 {
 	namespace API
 	{
+		constexpr int UACS_MSG = 0x55414353;
+
 		struct AstrInfo
 		{
 			/// This is the astronaut actual name, NOT the astronaut vessel name in the scenario.
@@ -14,8 +16,11 @@ namespace UACS
 
 			std::string role;
 
-			/// The astronaut mass in kilograms.
+			/// The astronaut body mass in kilograms. It does NOT include suit, fuel, or oxygen mass.
 			double mass;
+
+			/// The astronaut height is meters. This is used to set the astronaut height when released on ground.
+			double height;
 
 			/// The astronaut fuel level, from 0 to 1.
 			double fuelLvl{ 1 };
@@ -44,16 +49,74 @@ namespace UACS
 			std::optional<AstrInfo> astrInfo;
 		};
 
+		struct GroundInfo
+		{
+			/**
+			 * @brief The ground release position in vessel-relative coordinates. If no value is passed, it will be the same as airlock/slot position.
+			 * @note Y value is ignored, because it's determined by the surface elevation.
+			*/
+			std::optional<VECTOR3> pos;
+
+			/**
+			 * @brief The ground column direction in vessel-relative coordinates. If no value is passed, it will be calculated based on pos (see UACS manual).
+			 * @note It should be normalised to length 1, and it should be perpendicular to rowDir.
+			 * Y value is ignored, as it's determined by the surface elevation.
+			*/
+			std::optional<VECTOR3> colDir;
+
+			/**
+			 * @brief The ground row direction in vessel-relative coordinates. If no value is passed, it will be calculated based on pos (see UACS manual).
+			 * @note It should be normalised to length 1, and it should be perpendicular to colDir.
+			 * Y value is ignored, as it's determined by the surface elevation.
+			*/
+			std::optional<VECTOR3> rowDir;
+
+			/// The maximum cargo count in a column.
+			size_t cargoCount{ 3 };
+
+			/// The maximum column count.
+			size_t colCount{ 3 };
+
+			/// The space betweem each cargo in meters.
+			double cargoSpace{ 1.5 };
+
+			/// The space between each column in meters.
+			double colSpace{ 1.5 };
+		};
+
 		struct AirlockInfo
 		{
 			std::string name;
 
-			/// The airlock position in vessel-relative coordinates.
+			/**
+			 * @brief The airlock position in vessel-relative coordinates.
+			 * It's used to position astronauts if egressed in space.
+			*/
 			VECTOR3 pos;
+
+			/**
+			 * @brief The airlock direction in vessel-relative coordinates.
+			 * It's used to orientate astronauts if egressed in space.
+			 * @note It should be normalised to length 1, and it should be perpendicular to rot.
+			*/
+			VECTOR3 dir;
+
+			/**
+			 * @brief The airlock longitudinal alignment vector in vessel-relative coordinates.
+			 * It's used to orientate astronauts if egressed in space.
+			 * @note It should be normalised to length 1, and it should be perpendicular to dir.
+			*/
+			VECTOR3 rot;
 
 			bool open{ true };
 
-			/// Optional: The dock handle associated with the airlock, which is used to transfer astronaut to a docked vessel.
+			/// The astronaut egress velocity (if egressed in space) in meters per second.
+			double relVel{};
+
+			/// The airlock ground egress information.
+			GroundInfo gndInfo{};
+
+			/// The dock handle associated with the airlock, which is used to transfer astronaut to a docked vessel.
 			DOCKHANDLE hDock{};
 		};
 
@@ -85,11 +148,6 @@ namespace UACS
 			INGRS_FAIL
 		};
 
-		enum CargoType
-		{
-			STATIC,
-			UNPACK_ONLY,
-			PACK_UNPACK
-		};
+		enum CargoType { STATIC, UNPACKABLE };
 	}
 }

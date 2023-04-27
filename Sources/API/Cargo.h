@@ -26,6 +26,9 @@ namespace UACS
 				ATTACHMENTHANDLE hAttach;
 
 				CargoType type;
+				
+				/// If the cargo is unpackable only, and cannot be packed again. Applicable only if type is UNPACKABLE.
+				bool unpackOnly{ false };
 
 				/**
 				 * @brief The cargo unpacking flag.
@@ -41,14 +44,17 @@ namespace UACS
 				*/
 				bool breathable{ false };
 
-				/// Optional: The front position of the cargo. This is used to properly orient the cargo when released on sloped ground.
+				/**
+				 * @brief The cargo front end position in vessel-relative coordinates.
+				 * 
+				 * If rightPos and leftPos are passed, all three values are used to properly orienate the cargo on sloped ground.
+				 * Otherwise, at least frontPos Y value must be set to the cargo height, which is used when releasing cargo on ground.
+				*/
 				VECTOR3 frontPos{};
 
-				/// Optional:The right position of the cargo. This is used to properly orient the cargo when released on sloped ground.
-				VECTOR3 rightPos{};
+				std::optional<VECTOR3> rightPos{};
 
-				/// Optional: The left position of the cargo. This is used to properly orient the cargo when released on sloped ground.
-				VECTOR3 leftPos{};
+				std::optional<VECTOR3> leftPos{};
 
 				/**
 				 * @brief The cargo resource. If the cargo isn't a resource, it should be a nullopt.

@@ -1,5 +1,5 @@
 BEGIN_DESC
-A ShuttlePB in low Earth orbit with a fuel cargo.
+A UACS Carrier in low Earth orbit with a fuel cargo.
 END_DESC
 
 BEGIN_ENVIRONMENT
@@ -23,7 +23,7 @@ BEGIN_HUD
 END_HUD
 
 BEGIN_SHIPS
-ShuttlePB:UACS\ShuttlePB
+Carrier:UACS\Carrier
   STATUS Orbiting Earth
   RPOS -3139470.461 226082.591 5960138.414
   RVEL -6799.0937 -485.8713 -3522.3854
@@ -35,7 +35,7 @@ ShuttlePB:UACS\ShuttlePB
   ASTR_NAME Abdullah Radwan
   ASTR_ROLE Commander
   ASTR_MASS 70.000000
-  ASTR_OXYGEN 0.989717
+  ASTR_OXYGEN 1.000000
   ASTR_FUEL 1.000000
   ASTR_ALIVE 1
   ASTR_CLASSNAME Astronaut
@@ -46,7 +46,7 @@ CargoFuel1:UACS\Cargoes\FuelContainer
   RVEL -6799.0937 -485.8713 -3522.3854
   AROT 93.398 2.327 117.203
   VROT -0.0001 0.0000 0.0638
-  ATTACHED 0:0,ShuttlePB
+  ATTACHED 0:0,Carrier
   AFCMODE 7
   PRPLEVEL 0:1.000000
 END

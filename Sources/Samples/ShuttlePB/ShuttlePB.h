@@ -32,6 +32,7 @@ public:
 
 	int clbkConsumeBufferedKey(DWORD key, bool down, char* kstate);
 	bool clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
+	int clbkGeneric(int msgid, int prm, void* context);
 
 private:
 	// transformations for control surface animations
@@ -39,8 +40,8 @@ private:
 	static MGROUP_ROTATE trans_Lelevator, trans_Relevator;
 
 	UACS::API::Vessel uacs;
-	UACS::API::VslAstrInfo astrInfo;
-	UACS::API::VslCargoInfo cargoInfo;
+	UACS::API::VslAstrInfo vslAstrInfo;
+	UACS::API::VslCargoInfo vslCargoInfo;
 
 	size_t astrIdx{}, cargoIdx{};
 	char buffer[256];

@@ -31,17 +31,14 @@ namespace UACS
 
 		private:
 			inline static bool configLoaded{};
-			inline static double suitMass{ 60 };
-			inline static double maxNearestRange{ 60e3 };
-			inline static bool realMode{};
+			inline static bool enhancedMovements{ true };
+			inline static double nearSearchRange { 60e3 };			
 			static void LoadConfig();
 
-			struct AstrInfo : API::AstrInfo
-			{
-				double height;
-			} astrInfo;
+			API::AstrInfo astrInfo;
+			double suitMass;
 
-			UINT suitMesh, astrMesh;
+			UINT suitMesh, bodyMesh;			
 			PROPELLANT_HANDLE hFuel, hOxy;
 
 			std::string buffer;
@@ -49,7 +46,7 @@ namespace UACS
 			bool suitOn{ true };
 			double consumptionRate{ 1 };
 
-			API::Vessel pVslAPI;
+			API::Vessel vslAPI;
 			API::VslCargoInfo vslCargoInfo;
 			SpotLight* spotLight1{};
 			SpotLight* spotLight2{};
@@ -79,6 +76,9 @@ namespace UACS
 					size_t arlckIdx{};
 					size_t statIdx{};
 				} vslInfo;
+
+				int rightX, startY;
+				int smallSpace, space, largeSpace;
 			} hudInfo;
 
 			struct SurfaceInfo
@@ -140,20 +140,21 @@ namespace UACS
 			bool InBreathableArea(bool showMessage);
 			void Kill();
 
-			void DrawNearHUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
+			void DrawNearHUD(int x, int y, oapi::Sketchpad* skp);
 			void DrawVslHUD(int x, int y, oapi::Sketchpad* skp);
-			void DrawAstrHUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
-			void DrawCargoHUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
-			void DrawShort1HUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
-			void DrawShort2HUD(int x, int y, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp);
+			void DrawAstrHUD(int x, int y, oapi::Sketchpad* skp);
+			void DrawCargoHUD(int x, int y, oapi::Sketchpad* skp);
+			void DrawShort1HUD(int x, int y, oapi::Sketchpad* skp);
+			void DrawShort2HUD(int x, int y, oapi::Sketchpad* skp);
 
 			void DrawVslInfo(int x, int& y, oapi::Sketchpad* skp, VECTOR3 relPos);
 			void DrawAstrInfo(int x, int& y, oapi::Sketchpad* skp, const API::AstrInfo& astrInfo);
-			void DrawCargoInfo(int x, int& y, oapi::Sketchpad* skp, const API::CargoInfo& cargoInfo, bool drawBreathable);
+			void DrawCargoInfo(int x, int& y, oapi::Sketchpad* skp, const API::CargoInfo& cargoInfo, bool drawBreathable, bool selectedName = false);
 
 			std::optional<size_t> GetFirstVslIdx();
 			std::optional<size_t> GetFirstAstrIdx();
 			std::optional<size_t> GetFirstCargoIdx();
+			size_t GetFreeCargoCount();
 		};
 	}
 }

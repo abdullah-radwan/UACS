@@ -21,16 +21,13 @@ namespace UACS
 
 			if (hConfig)
 			{
-				if (!oapiReadItem_float(hConfig, "ContainerMass", containerMass))
-					oapiWriteLog("UACS cargo warning: Couldn't read the container mass, will use the default mass (85 kg)");
-
 				if (!oapiReadItem_bool(hConfig, "EnableFocus", enableFocus))
-					oapiWriteLog("UACS cargo warning: Couldn't read the focus enabling, will use the default setting (FALSE)");
+					oapiWriteLog("UACS cargo warning: Couldn't read EnableFocus setting, will use the default value (FALSE)");
 
 				oapiCloseFile(hConfig, FILE_IN_ZEROONFAIL);
 			}
 
-			else oapiWriteLog("UACS cargo warning: Couldn't load the configurations file, will use the default configurations");
+			else oapiWriteLog("UACS cargo warning: Couldn't load config file, will use default config");
 		}
 
 		Cargo::Cargo(OBJHANDLE hVessel, int fModel) : API::Cargo(hVessel, fModel) { if (!configLoaded) LoadConfig(); }
@@ -42,21 +39,23 @@ namespace UACS
 			if (!oapiReadItem_string(cfg, "PackedMesh", buffer)) WarnAndTerminate("mesh", GetClassNameA(), "cargo");
 			packedMesh = buffer;
 
-			if (!oapiReadItem_float(cfg, "CargoMass", netMass)) WarnAndTerminate("mass", GetClassNameA(), "cargo");
+			if (!oapiReadItem_float(cfg, "PayloadMass", payloadMass)) WarnAndTerminate("payload mass", GetClassNameA(), "cargo");
+
+			if (!oapiReadItem_float(cfg, "ContainerMass", contMass)) WarnAndTerminate("container mass", GetClassNameA(), "cargo");
 
 			int type;
 			if (!oapiReadItem_int(cfg, "CargoType", type)) WarnAndTerminate("type", GetClassNameA(), "cargo");
 			cargoInfo.type = API::CargoType(type);
 
-			if (oapiReadItem_string(cfg, "CargoResource", buffer)) { cargoInfo.resource = buffer; CreatePropellantResource(netMass); }
+			if (oapiReadItem_string(cfg, "CargoResource", buffer)) { cargoInfo.resource = buffer; CreatePropellantResource(payloadMass); }
 
 			switch (cargoInfo.type)
 			{
-			case API::UNPACK_ONLY:
-				oapiReadItem_int(cfg, "SpawnCount", spawnCount);
-				[[fallthrough]];
+			case API::UNPACKABLE:
+				oapiReadItem_bool(cfg, "UnpackOnly", cargoInfo.unpackOnly);
 
-			case API::PACK_UNPACK:
+				if (oapiReadItem_int(cfg, "SpawnCount", spawnCount)) cargoInfo.unpackOnly = true;
+
 				if (!oapiReadItem_int(cfg, "UnpackingType", unpackType)) WarnAndTerminate("unpacking type", GetClassNameA(), "cargo");
 
 				switch (unpackType)
@@ -121,8 +120,7 @@ namespace UACS
 				{
 					switch (cargoInfo.type)
 					{
-					case API::UNPACK_ONLY:
-					case API::PACK_UNPACK:
+					case API::UNPACKABLE:
 						switch (unpackType)
 						{
 						case UnpackType::MODULE:
@@ -157,8 +155,7 @@ namespace UACS
 
 			switch (cargoInfo.type)
 			{
-			case API::UNPACK_ONLY:
-			case API::PACK_UNPACK:
+			case API::UNPACKABLE:
 				switch (unpackType)
 				{
 				case UnpackType::MODULE:
@@ -188,13 +185,13 @@ namespace UACS
 					VESSELSTATUS2 status = GetVesselStatus(this);
 					status.status = 1;
 
-					SetGroundRotation(status, abs(unpackFrontPos.y));
+					SetGroundRotation(status, cargoInfo.frontPos, cargoInfo.rightPos, cargoInfo.leftPos);
 					DefSetStateEx(&status);
 				}
 			}
 
 			// Don't continue if the cargo is not unpackable or not Orbiter vessel
-			if ((cargoInfo.type != API::PACK_UNPACK && cargoInfo.type != API::UNPACK_ONLY) || unpackType != UnpackType::VESSEL) return;
+			if (cargoInfo.type != API::UNPACKABLE || unpackType != UnpackType::VESSEL) return;
 
 			const bool attached = GetAttachmentStatus(cargoInfo.hAttach);
 
@@ -275,7 +272,7 @@ namespace UACS
 			{
 				VESSELSTATUS2 status = GetVesselStatus(this);
 
-				if (status.status) SetGroundRotation(status, abs(unpackFrontPos.y));
+				if (status.status) SetGroundRotation(status, cargoInfo.frontPos, cargoInfo.rightPos, cargoInfo.leftPos);
 
 				OBJHANDLE hCargo{};
 
@@ -300,7 +297,7 @@ namespace UACS
 
 			SetUnpackedCaps();
 
-			if (once || cargoInfo.type != API::UNPACK_ONLY) return true;
+			if (once || !cargoInfo.unpackOnly) return true;
 
 			VESSELSTATUS2 status = GetVesselStatus(this);
 
@@ -335,14 +332,15 @@ namespace UACS
 			{
 				status = GetVesselStatus(this);
 
-				SetAttachmentParams(cargoInfo.hAttach, { 0, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 });
+				SetAttachmentParams(cargoInfo.hAttach, { 0, 0, 0 }, { 0, -1, 0 }, { 0, 0, 1 });
 			}
-			else cargoInfo.hAttach = CreateAttachment(true, { 0, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 }, "UACS");
+			else cargoInfo.hAttach = CreateAttachment(true, { 0, 0, 0 }, { 0, -1, 0 }, { 0, 0, 1 }, "UACS");
 
 			// Replace the unpacked mesh with the packed mesh
 			InsertMesh(packedMesh.c_str(), 0);
 
-			SetEmptyMass((netMass * spawnCount) + resContMass + containerMass);
+			if (cargoInfo.resource) SetEmptyMass(resContMass + contMass);
+			else SetEmptyMass((payloadMass * spawnCount) + contMass);
 
 			SetSize(0.65);
 
@@ -371,7 +369,11 @@ namespace UACS
 			SetTouchdownPoints(tdVtx.data(), tdVtx.size());
 
 			// If the cargo was unpacked and it is landed
-			if (init && status.status) { SetGroundRotation(status, 0.65); DefSetStateEx(&status); }
+			if (init && status.status) 
+			{
+				SetGroundRotation(status, cargoInfo.frontPos, cargoInfo.rightPos, cargoInfo.leftPos);
+				DefSetStateEx(&status);
+			}
 		}
 
 		void Cargo::SetUnpackedCaps(bool init)
@@ -382,16 +384,16 @@ namespace UACS
 			{
 				status = GetVesselStatus(this);
 
-				SetAttachmentParams(cargoInfo.hAttach, unpackAttachPos, { 0, 1, 0 }, { 0, 0, 1 });
+				SetAttachmentParams(cargoInfo.hAttach, unpackAttachPos, { 0, -1, 0 }, { 0, 0, 1 });
 			}
 
-			else cargoInfo.hAttach = CreateAttachment(true, unpackAttachPos, { 0, 1, 0 }, { 0, 0, 1 }, "UACS");
+			else cargoInfo.hAttach = CreateAttachment(true, unpackAttachPos, { 0, -1, 0 }, { 0, 0, 1 }, "UACS");
 
 			InsertMesh(unpackedMesh.c_str(), 0);
 
 			SetSize(unpackSize);
 
-			SetEmptyMass(cargoInfo.resource ? resContMass : netMass);
+			SetEmptyMass(cargoInfo.resource ? resContMass : payloadMass);
 
 			double stiffness = 100 * GetMass();
 			double damping = 2 * sqrt(GetMass() * stiffness);
@@ -433,7 +435,11 @@ namespace UACS
 			cargoInfo.rightPos = unpackRightPos;
 			cargoInfo.leftPos = unpackLeftPos;
 
-			if (init && status.status) { SetGroundRotation(status, abs(unpackFrontPos.y)); DefSetStateEx(&status); }
+			if (init && status.status) 
+			{ 
+				SetGroundRotation(status, cargoInfo.frontPos, cargoInfo.rightPos, cargoInfo.leftPos);				
+				DefSetStateEx(&status);
+			}
 		}
 	}
 }

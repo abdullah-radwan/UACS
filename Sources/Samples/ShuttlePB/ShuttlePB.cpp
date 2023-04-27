@@ -16,7 +16,7 @@
 // Overloaded callback functions
 // ==============================================================
 
-ShuttlePB::ShuttlePB(OBJHANDLE hVessel, int flightmodel) : VESSEL4(hVessel, flightmodel), uacs(this, &astrInfo, &cargoInfo)
+ShuttlePB::ShuttlePB(OBJHANDLE hVessel, int flightmodel) : VESSEL4(hVessel, flightmodel), uacs(this, &vslAstrInfo, &vslCargoInfo)
 {
 	sprintf(buffer, "UACS version: %s", uacs.GetUACSVersion().data());
 	cargoMsg = _strdup(buffer);
@@ -178,10 +178,31 @@ void ShuttlePB::clbkSetClassCaps (FILEHANDLE cfg)
 	// associate a mesh for the visual
 	AddMesh ("ShuttlePB");
 
-	astrInfo.airlocks.push_back({ "UACS", { 0,-0.75,3.5 }, true, CreateDock(PB_DOCK_POS, PB_DOCK_DIR, PB_DOCK_ROT) });
-	astrInfo.stations.push_back({ "Pilot" });
+	UACS::API::AirlockInfo airInfo;
+	UACS::API::GroundInfo airGndInfo;
 
-	cargoInfo.slots.push_back({ CreateAttachment(false, { 0,-1.65,-1.3 }, { 0,-1,0 }, { 0,0,1 }, "UACS"), true });
+	airInfo.name = "UACS";
+	airInfo.pos = { 0,-0.74,3.5 };
+	airInfo.dir = { 0,0,-1 };
+	airInfo.rot = { -1,0,0 };
+	airInfo.relVel = -0.05;
+	airInfo.open = true;
+	airInfo.hDock = CreateDock(PB_DOCK_POS, PB_DOCK_DIR, PB_DOCK_ROT);
+
+	airGndInfo.pos = { -4,0,-1.3 }; airGndInfo.colDir = { -1,0,0 }; airGndInfo.rowDir = { 0,0,1 };
+	airInfo.gndInfo = airGndInfo;
+
+	vslAstrInfo.airlocks.push_back(airInfo);
+	vslAstrInfo.stations.push_back({ "Pilot" });
+
+	UACS::API::SlotInfo slotInfo;
+	UACS::API::GroundInfo slotGndInfo;
+
+	slotInfo.hAttach = CreateAttachment(false, { 0,-1.65,-1.3 }, { 0,-1,0 }, { 0,0,1 }, "UACS");
+	slotGndInfo.pos = { 4,0,-1.3 }; //slotGndInfo.colDir = { -1,0,0 }; slotGndInfo.rowDir = { 0,0,1 };
+	slotInfo.gndInfo = slotGndInfo;
+
+	vslCargoInfo.slots.push_back(slotInfo);
 }
 
 void ShuttlePB::clbkLoadStateEx(FILEHANDLE scn, void* status)
@@ -198,7 +219,13 @@ void ShuttlePB::clbkSaveState(FILEHANDLE scn)
 	uacs.SaveState(scn);
 }
 
-void ShuttlePB::clbkPostCreation() { uacs.clbkPostCreation(); }
+void ShuttlePB::clbkPostCreation() 
+{ 
+	uacs.clbkPostCreation(); 
+
+	for (const auto& station : vslAstrInfo.stations) 
+		if (station.astrInfo) SetEmptyMass(GetEmptyMass() + (*station.astrInfo).suitMass + (*station.astrInfo).mass);
+}
 
 void ShuttlePB::clbkPreStep(double simt, double simdt, double mjd)
 {
@@ -262,10 +289,14 @@ int ShuttlePB::clbkConsumeBufferedKey(DWORD key, bool down, char* kstate)
 			return 1;
 
 		case OAPI_KEY_E:
+		{
+			auto astrInfo = vslAstrInfo.stations.at(0).astrInfo;
+
 			switch (uacs.EgressAstronaut(0, 0))
 			{
 			case UACS::API::EGRS_SUCCEDED:
 				astrMsg = "Success: Astronaut egressed.";
+				SetEmptyMass(GetEmptyMass() - (*astrInfo).suitMass - (*astrInfo).mass);
 				break;
 
 			case UACS::API::EGRS_STN_EMPTY:
@@ -286,6 +317,7 @@ int ShuttlePB::clbkConsumeBufferedKey(DWORD key, bool down, char* kstate)
 			}
 			astrTimer = 0;
 			return 1;
+		}
 
 		case OAPI_KEY_T:
 			switch (uacs.TransferAstronaut(0, 0))
@@ -325,7 +357,7 @@ int ShuttlePB::clbkConsumeBufferedKey(DWORD key, bool down, char* kstate)
 			return 1;
 
 		case OAPI_KEY_D:
-			astrInfo.stations.front() = {};
+			vslAstrInfo.stations.front() = {};
 			astrMsg = "Success: Astronaut deleted.";
 
 			astrTimer = 0;
@@ -526,7 +558,7 @@ bool ShuttlePB::clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* 
 
 	if (cargoTimer < 5) { y += 30; skp->Text(x, y, cargoMsg, strlen(cargoMsg)); }	
 
-	if (const auto& info = cargoInfo.slots.front().cargoInfo; info)
+	if (const auto& info = vslCargoInfo.slots.front().cargoInfo; info)
 	{
 		y += 30;
 
@@ -600,7 +632,7 @@ bool ShuttlePB::clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* 
 
 	if (astrTimer < 5) { y += 30; skp->Text(x, y, astrMsg, strlen(astrMsg)); }
 
-	if (auto info = astrInfo.stations.front().astrInfo; info)
+	if (auto info = vslAstrInfo.stations.front().astrInfo; info)
 	{
 		y += 30;
 
@@ -620,6 +652,22 @@ bool ShuttlePB::clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* 
 	}
 
 	return true;
+}
+
+int ShuttlePB::clbkGeneric(int msgid, int prm, void* context)
+{
+	if (msgid == UACS::API::UACS_MSG && prm == UACS::API::INGRS_SUCCED) 
+	{
+		astrMsg = "An astronaut ingressed!";
+		astrTimer = 0;
+
+		auto& astrInfo = *(vslAstrInfo.stations.at(*static_cast<size_t*>(context)).astrInfo);
+		SetEmptyMass(GetEmptyMass() + astrInfo.suitMass + astrInfo.mass);
+
+		return 1;
+	}
+
+	return 0;
 }
 
 void ShuttlePB::SetStatusLanded()

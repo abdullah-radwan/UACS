@@ -2,6 +2,8 @@
 #include "..\API\Vessel.h"
 #include "..\API\Cargo.h"
 
+#include <span>
+
 namespace UACS
 {
 	namespace Core
@@ -84,17 +86,15 @@ namespace UACS
 			API::AstrInfo* pLoadAstrInfo{};
 			bool passCheck{};
 
-			std::vector<VECTOR3> GetNearbyAstrs(const VECTOR3& airlockPos);
-			bool GetNearestAstrEmptyPos(VECTOR3& initialPos);
-			double GetAstrHeight(std::string_view className);
+			template<typename T>
+			bool SetGroundPos(const VESSELSTATUS2& vslStatus, VECTOR3& initPos, API::GroundInfo gndInfo, std::span<T*> objSpan, const T* pOrgObj = nullptr);
+			void SetGroundDir(VECTOR3& dir);
 
 			API::CargoInfo SetCargoInfo(API::Cargo* pCargo);
 			bool StationHasResource(VESSEL* pStation, std::string_view resource);
 
 			API::SlotInfo& GetEmptySlot(bool mustBeOpen);
 			API::SlotInfo& GetOccupiedSlot(bool mustBeOpen);
-			std::vector<VECTOR3> GetNearbyCargoes(const VECTOR3& slotPos);
-			bool GetNearestCargoEmptyPos(VECTOR3& initialPos);
 		};
 	}
 }

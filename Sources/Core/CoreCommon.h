@@ -14,7 +14,7 @@ namespace UACS
 
 		inline std::unordered_map<OBJHANDLE, API::VslAstrInfo*> vslAstrMap;
 
-		inline std::string_view GetUACSVersion() { return "Alpha 5"; }
+		inline std::string_view GetUACSVersion() { return "Pre-release 1"; }
 
 		inline size_t GetScnAstrCount() { return astrVector.size(); }
 
