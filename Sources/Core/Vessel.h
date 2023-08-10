@@ -20,7 +20,7 @@ namespace UACS
 
 			virtual void clbkPostCreation();
 
-			virtual void SaveState(FILEHANDLE);
+			virtual void clbkSaveState(FILEHANDLE);
 
 			virtual size_t GetScnAstrCount();
 
@@ -29,10 +29,6 @@ namespace UACS
 			virtual const API::AstrInfo* GetAstrInfoByHandle(OBJHANDLE);
 
 			virtual const API::VslAstrInfo* GetVslAstrInfo(OBJHANDLE);
-
-			virtual void SetScnAstrInfoByIndex(size_t, API::AstrInfo);
-
-			virtual bool SetScnAstrInfoByHandle(OBJHANDLE, API::AstrInfo);
 
 			virtual size_t GetAvailAstrCount();
 
@@ -70,7 +66,7 @@ namespace UACS
 
 			virtual std::pair<API::DrainResult, double> DrainGrappledResource(std::string_view, double, std::optional<size_t>);
 
-			virtual std::pair<API::DrainResult, double> DrainUngrappledResource(std::string_view, double, OBJHANDLE);
+			virtual std::pair<API::DrainResult, double> DrainScenarioResource(std::string_view, double, OBJHANDLE);
 
 			virtual std::pair<API::DrainResult, double> DrainStationResource(std::string_view, double, OBJHANDLE);
 

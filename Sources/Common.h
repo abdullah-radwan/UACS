@@ -7,7 +7,7 @@ namespace UACS
 {
 	inline void WarnAndTerminate(const char* warning, const char* className, const char* type)
 	{
-		oapiWriteLogV("UACS fatal error: The %s of %s %s is NOT specified", warning, className, type);
+		oapiWriteLogV("UACS fatal error: The %s of %s %s is not specified", warning, className, type);
 
 		std::terminate();
 	}
@@ -35,12 +35,13 @@ namespace UACS
 
 	inline double DistLngLat(double bodySize, double lng1, double lat1, double lng2, double lat2)
 	{
-		double cosA = cos(lng2 - lng1);
-		double slat1 = sin(lat1), clat1 = cos(lat1);
-		double slat2 = sin(lat2), clat2 = cos(lat2);
-		double cosa = slat2 * slat1 + clat2 * clat1 * cosA;
+		double latOffset = (lat2 - lat1) * 0.5;
+		double lngOffset = (lng2 - lng1) * 0.5;
 
-		return acos(cosa) * bodySize;
+		double a = sin(latOffset) * sin(latOffset) + cos(lat1) * cos(lat2) * sin(lngOffset) * sin(lngOffset);
+		double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+		return c * bodySize;
 	}
 
 	inline MATRIX3 RotationMatrix(VECTOR3 angles)

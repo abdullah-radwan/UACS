@@ -7,6 +7,9 @@
     <ClCompile Include="Vessel.cpp">
       <Filter>Vessel</Filter>
     </ClCompile>
+    <ClCompile Include="Cargo.cpp">
+      <Filter>Cargo</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CoreCommon.h" />
@@ -18,6 +21,9 @@
     <ClInclude Include="Vessel.h">
       <Filter>Vessel</Filter>
     </ClInclude>
+    <ClInclude Include="Cargo.h">
+      <Filter>Cargo</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Astronaut">
@@ -25,6 +31,9 @@
     </Filter>
     <Filter Include="Vessel">
       <UniqueIdentifier>{193fabff-2f2d-4047-b5e8-f542d3c4108d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Cargo">
+      <UniqueIdentifier>{2a2ee8da-861f-45d4-b9e9-9f869c3c6fea}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

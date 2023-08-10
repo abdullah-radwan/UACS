@@ -25,7 +25,7 @@ namespace UACS
 
 		private:
 			struct UnpackType { enum { MODULE, VESSEL }; };
-			struct UnpackMode { enum { RELEASED, DELAYED, LANDED, MANUAL }; };
+			struct UnpackMode { enum { MANUAL, RELEASED, DELAYED, LANDED }; };
 
 			inline static bool configLoaded{};
 			inline static bool enableFocus{};
@@ -35,13 +35,12 @@ namespace UACS
 			std::string packedMesh, unpackedMesh;
 
 			double payloadMass, contMass;
-			double resContMass{};
 
-			int unpackType;
-			int spawnCount{ 1 };
+			int unpackType, unpackMode{};
+			int unpackDelay; double unpackTimer{};
+			int unpackedCount{ 1 };
 
-			std::string spawnName, spawnModule;
-			int unpackMode, unpackDelay;
+			std::string unpackVslName, unpackVslModule;
 			double unpackSize;
 
 			VECTOR3 unpackFrontPos{};
@@ -51,11 +50,6 @@ namespace UACS
 			VECTOR3 unpackAttachPos{};
 			VECTOR3 unpackPMI{ -1,-1,-1 };
 			VECTOR3 unpackCS{ 20,20,20 };
-
-			double timer{};
-			bool landed{};
-			bool timing{};
-			bool attached{};
 
 			bool UnpackCargo(bool once = false);
 			void SetPackedCaps(bool init = true);

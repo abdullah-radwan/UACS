@@ -31,7 +31,7 @@ namespace UACS
 		
 		void Vessel::clbkPostCreation() { if (pCoreVessel) pCoreVessel->clbkPostCreation(); }
 
-		void Vessel::SaveState(FILEHANDLE scn) { if (pCoreVessel) pCoreVessel->SaveState(scn); }
+		void Vessel::clbkSaveState(FILEHANDLE scn) { if (pCoreVessel) pCoreVessel->clbkSaveState(scn); }
 
 		size_t Vessel::GetScnAstrCount() { return pCoreVessel ? pCoreVessel->GetScnAstrCount() : 0; }
 
@@ -43,12 +43,6 @@ namespace UACS
 
 		const VslAstrInfo* Vessel::GetVslAstrInfo(OBJHANDLE hVessel)
 		{ return pCoreVessel ? pCoreVessel->GetVslAstrInfo(hVessel) : nullptr; }
-
-		void Vessel::SetScnAstrInfoByIndex(size_t astrIdx, AstrInfo astrInfo)
-		{ if (pCoreVessel) pCoreVessel->SetScnAstrInfoByIndex(astrIdx, astrInfo); }
-
-		bool Vessel::SetScnAstrInfoByHandle(OBJHANDLE hAstr, AstrInfo astrInfo)
-		{ return pCoreVessel ? pCoreVessel->SetScnAstrInfoByHandle(hAstr, astrInfo) : false; }
 
 		size_t Vessel::GetAvailAstrCount() { return pCoreVessel ? pCoreVessel->GetAvailAstrCount() : 0; }
 
@@ -106,9 +100,9 @@ namespace UACS
 		std::pair<DrainResult, double> Vessel::DrainGrappledResource(std::string_view resource, double mass, std::optional<size_t> slotIdx)
 		{ return pCoreVessel ? pCoreVessel->DrainGrappledResource(resource, mass, slotIdx) : std::pair<DrainResult, double>{ DRIN_FAIL, 0 }; }
 
-		std::pair<DrainResult, double> Vessel::DrainUngrappledResource(std::string_view resource, double mass, OBJHANDLE hCargo)
+		std::pair<DrainResult, double> Vessel::DrainScenarioResource(std::string_view resource, double mass, OBJHANDLE hCargo)
 		{
-			return pCoreVessel ? pCoreVessel->DrainUngrappledResource(resource, mass, hCargo) : std::pair<DrainResult, double>{ DRIN_FAIL, 0 };
+			return pCoreVessel ? pCoreVessel->DrainScenarioResource(resource, mass, hCargo) : std::pair<DrainResult, double>{ DRIN_FAIL, 0 };
 		}
 
 		std::pair<DrainResult, double> Vessel::DrainStationResource(std::string_view resource, double mass, OBJHANDLE hStation)

@@ -26,10 +26,6 @@ namespace UACS
 
 		const API::VslAstrInfo* Astronaut::GetVslAstrInfo(OBJHANDLE hVessel) { return Core::GetVslAstrInfo(hVessel); }
 
-		void Astronaut::SetScnAstrInfoByIndex(size_t astrIdx, API::AstrInfo astrInfo) { Core::SetScnAstrInfoByIndex(astrIdx, astrInfo); }
-
-		bool Astronaut::SetScnAstrInfoByHandle(OBJHANDLE hAstr, API::AstrInfo astrInfo) { return Core::SetScnAstrInfoByHandle(hAstr, astrInfo); }
-
 		std::optional<API::NearestAirlock> Astronaut::GetNearestAirlock(double range)
 		{
 			API::NearestAirlock nearAirlock;
@@ -105,7 +101,7 @@ namespace UACS
 
 				const char* attachLabel = pTarget->GetAttachmentId(pTarget->GetAttachmentHandle(true, attachIdx));
 
-				if (!attachLabel || (std::strcmp(attachLabel, "UACS_B") && std::strcmp(attachLabel, "UACS_BS"))) continue;
+				if (!attachLabel || (std::strcmp(attachLabel, "UACS_B") && std::strcmp(attachLabel, "UACS_RB"))) continue;
 
 				VECTOR3 targetPos;
 				pAstr->GetRelativePos(pTarget->GetHandle(), targetPos);
@@ -151,6 +147,11 @@ namespace UACS
 
 		bool Astronaut::InBreathableArea()
 		{
+			const double pressure = pAstr->GetAtmPressure();
+			const double temp = pAstr->GetAtmTemperature();
+
+			if (temp > 223 && temp < 373 && pressure > 3.6e4 && pressure < 2.5e5) return true;
+
 			passCheck = true;
 			auto result = GetNearestBreathable(0);
 			passCheck = false;
@@ -199,6 +200,8 @@ namespace UACS
 				else if (stations.at(*stationIdx).astrInfo) return API::INGRS_STN_OCCP;
 
 				const API::AirlockInfo& airlockInfo = airlocks.at(*airlockIdx);
+
+				if (airlockInfo.hDock && pVessel->GetDockStatus(airlockInfo.hDock)) return API::INGRS_ARLCK_DCKD;
 
 				VECTOR3 airlockPos;
 				pVessel->Local2Global(airlockInfo.pos, airlockPos);

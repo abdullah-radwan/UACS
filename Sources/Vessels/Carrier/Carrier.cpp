@@ -40,6 +40,7 @@ namespace UACS
 
 			slotInfo.hAttach = CreateAttachment(false, { 0,1.95,-1 }, { 0,1,0 }, { 0,0,1 }, "UACS");
 			slotInfo.relVel = 0.05;
+
 			slotGndInfo.pos = { -4,0,-1.3 };
 			slotInfo.gndInfo = slotGndInfo;
 
@@ -224,7 +225,7 @@ namespace UACS
 		{
 			VESSEL4::clbkSaveState(scn);
 
-			vslAPI.SaveState(scn);
+			vslAPI.clbkSaveState(scn);
 		}
 
 		void Carrier::clbkPostCreation()
@@ -490,7 +491,9 @@ namespace UACS
 					double reqMass = GetMaxFuelMass() - GetFuelMass();
 
 					auto drainInfo = vslAPI.DrainGrappledResource("fuel", reqMass);
-					if (drainInfo.first != UACS::API::DRIN_SUCCED) drainInfo = vslAPI.DrainUngrappledResource("fuel", reqMass);
+
+					if (drainInfo.first != UACS::API::DRIN_SUCCED) drainInfo = vslAPI.DrainScenarioResource("fuel", reqMass);
+
 					if (drainInfo.first != UACS::API::DRIN_SUCCED) drainInfo = vslAPI.DrainStationResource("fuel", reqMass);
 
 					switch (drainInfo.first)
@@ -599,7 +602,9 @@ namespace UACS
 						break;
 
 					case API::UNPACKABLE:
-						skp->Text(x, y, "Type: Unpackable", 16);
+						if ((*info).unpackOnly) skp->Text(x, y, "Type: Unpackable only", 21);
+						else skp->Text(x, y, "Type: Unpackable", 16);
+
 						y += space;
 
 						buffer = std::format("Breathable: {}", (*info).breathable ? "Yes" : "No");
@@ -636,7 +641,10 @@ namespace UACS
 					skp->Text(x, y, buffer.c_str(), buffer.size());
 					y += space;
 
-					buffer = std::format("Role: {}", (*info).role);
+					buffer = (*info).role;
+					buffer[0] = std::toupper(buffer[0]);
+
+					buffer = std::format("Role: {}", buffer);
 					skp->Text(x, y, buffer.c_str(), buffer.size());
 					y += space;
 

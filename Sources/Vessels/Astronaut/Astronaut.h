@@ -2,6 +2,7 @@
 #include "..\..\API\Astronaut.h"
 #include "..\..\API\Vessel.h"
 #include <forward_list>
+#include <map>
 
 namespace UACS
 {
@@ -25,20 +26,21 @@ namespace UACS
 
 			int clbkConsumeBufferedKey(DWORD key, bool down, char* kstate) override;
 			int clbkConsumeDirectKey(char* kstate) override;
-				
+
 			void clbkPreStep(double simt, double simdt, double mjd) override;
 			bool clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp) override;
 
 		private:
 			inline static bool configLoaded{};
 			inline static bool enhancedMovements{ true };
-			inline static double nearSearchRange { 60e3 };			
+			inline static double searchRange{ 60e3 };
 			static void LoadConfig();
 
 			API::AstrInfo astrInfo;
 			double suitMass;
 
-			UINT suitMesh, bodyMesh;			
+			UINT suitMesh, bodyMesh;
+			double bodyHeight;
 			PROPELLANT_HANDLE hFuel, hOxy;
 
 			std::string buffer;
@@ -69,6 +71,8 @@ namespace UACS
 
 				size_t vslIdx{};
 				OBJHANDLE hVessel{};
+
+				std::map<size_t, OBJHANDLE> vslMap, astrMap, cargoMap;
 
 				struct VesselInfo
 				{
@@ -128,16 +132,16 @@ namespace UACS
 			void InitPropellant();
 			void SetOxygenConsumption(double simdt);
 			void SetLandedStatus();
+
 			void SetSurfaceRef();
 			void SetGroundMovement(double simdt);
+			void SetLngLatHdg(double distance, VESSELSTATUS2& status);
 
 			void SetDefaultValues();
 			void SetValue(ValueInfo& valueInfo, bool setMax, bool setMin, bool setSlow);
 
 			void SetHeadlight(bool active);
 			void SetSuit(bool on, bool checkBreath);
-
-			bool InBreathableArea(bool showMessage);
 			void Kill();
 
 			void DrawNearHUD(int x, int y, oapi::Sketchpad* skp);
@@ -151,10 +155,10 @@ namespace UACS
 			void DrawAstrInfo(int x, int& y, oapi::Sketchpad* skp, const API::AstrInfo& astrInfo);
 			void DrawCargoInfo(int x, int& y, oapi::Sketchpad* skp, const API::CargoInfo& cargoInfo, bool drawBreathable, bool selectedName = false);
 
-			std::optional<size_t> GetFirstVslIdx();
-			std::optional<size_t> GetFirstAstrIdx();
-			std::optional<size_t> GetFirstCargoIdx();
-			size_t GetFreeCargoCount();
+			void SetVslMap();
+			void SetAstrMap();
+			void SetCargoMap();
+			void SetMapIdx(const std::map<size_t, OBJHANDLE>& map, bool increase);
 		};
 	}
 }

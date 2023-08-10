@@ -21,10 +21,6 @@ namespace UACS
 
 			virtual const API::VslAstrInfo* GetVslAstrInfo(OBJHANDLE);
 
-			virtual void SetScnAstrInfoByIndex(size_t, API::AstrInfo);
-
-			virtual bool SetScnAstrInfoByHandle(OBJHANDLE, API::AstrInfo);
-
 			virtual std::optional<API::NearestAirlock> GetNearestAirlock(double);
 
 			virtual std::pair<OBJHANDLE, VECTOR3> GetNearestBreathable(double);

@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Pre-release 2 - 2023-08-10
+### Added
+- Developer manaul.
+- Astronauts can specify suit height and body height.
+### Changed
+- NearestSearchRange option to SearchRange.
+- No vessels outside SearchRange are displayed on astronaut HUD.
+- Renamed SaveState to clbkSaveState.
+- Renamed DrainUngrappledResource to DrainScenarioResource.
+- Renamed station labels.
+- InBreathableArea now checks for breathable atmosphere.
+- GroundInfo struct.
+- If no resource is specified in station config file, the station is assumed to support all resources.
+- Cargo options.
+- Cargo state saving.
+### Fixed
+- Movements near the poles.
+### Removed
+- SetScnAstrInfoByIndex and SetScnAstrInfoByHandle methods.
+- Vessel cargo astronaut mode. Replaced by grappleUnpacked and singleObject options.
+- Resource container mass.
+
 ## Pre-release 1 - 2023-04-27
 Too many breaking changes!
 

@@ -9,10 +9,11 @@
 
 namespace UACS
 {
+	namespace Core { class Cargo; }
+
 	namespace API
 	{
-		class CargoImpl;
-
+		/// UACS cargo API.
 		class Cargo : public VESSEL4
 		{
 		public:
@@ -32,8 +33,7 @@ namespace UACS
 
 				/**
 				 * @brief The cargo unpacking flag.
-				 * @note The cargo is responsible for setting the flag correctly
-				 * (e.g. loading/saving it to scenario, or when clbkPackCargo or clbkUnpackCargo is called, etc.).
+				 * @note The cargo is responsible for setting the flag correctly (e.g. loading/saving it to scenario, or when clbkPackCargo or clbkUnpackCargo is called, etc.).
 				*/
 				bool unpacked{ false };
 
@@ -48,7 +48,7 @@ namespace UACS
 				 * @brief The cargo front end position in vessel-relative coordinates.
 				 * 
 				 * If rightPos and leftPos are passed, all three values are used to properly orienate the cargo on sloped ground.
-				 * Otherwise, at least frontPos Y value must be set to the cargo height, which is used when releasing cargo on ground.
+				 * Otherwise, at least frontPos Y value must be set to the cargo height (see UACS developer manual).
 				*/
 				VECTOR3 frontPos{};
 
@@ -58,7 +58,7 @@ namespace UACS
 
 				/**
 				 * @brief The cargo resource. If the cargo isn't a resource, it should be a nullopt.
-				 * @note Use the standard resource names specified in UACS manual for better compatibility with vessels.
+				 * @note Use the standard resource names (see UACS developer manual).
 				*/
 				std::optional<std::string> resource{};
 			};
@@ -68,10 +68,15 @@ namespace UACS
 
 			/**
 			 * @brief The cargo information callback. It must be implemented by cargoes.
-			 * @return A const pointer to the CargoInfo struct. The struct must live until the cargo is destroyed.
-			 * Don't pass the address of a temporary variable.
+			 * @return A const pointer to the CargoInfo struct. The struct must live until the cargo is destroyed. Don't pass the address of a temporary variable.
 			*/
 			virtual const CargoInfo* clbkGetCargoInfo() = 0;
+
+			/**
+			 * @brief Gets UACS version.
+			 * @return UACS version.
+			*/
+			std::string_view GetUACSVersion();
 
 			/// Optional callback: Called when the cargo is grappled.
 			virtual void clbkCargoGrappled();
@@ -98,7 +103,8 @@ namespace UACS
 			virtual double clbkDrainResource(double mass);
 
 		private:
-			std::unique_ptr<CargoImpl> pCargoImpl;
+			HINSTANCE coreDLL;
+			Core::Cargo* pCoreCargo{};
 		};
 	}
 }

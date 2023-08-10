@@ -34,10 +34,6 @@ namespace UACS
 
 		const VslAstrInfo* Astronaut::GetVslAstrInfo(OBJHANDLE hVessel) { return pCoreAstr->GetVslAstrInfo(hVessel); }
 
-		void Astronaut::SetScnAstrInfoByIndex(size_t astrIdx, AstrInfo astrInfo) { pCoreAstr->SetScnAstrInfoByIndex(astrIdx, astrInfo); }
-
-		bool Astronaut::SetScnAstrInfoByHandle(OBJHANDLE hAstr, AstrInfo astrInfo) { return pCoreAstr->SetScnAstrInfoByHandle(hAstr, astrInfo);}
-
 		std::optional<NearestAirlock> Astronaut::GetNearestAirlock(double range) { return pCoreAstr->GetNearestAirlock(range); }
 
 		std::pair<OBJHANDLE, VECTOR3> Astronaut::GetNearestBreathable(double range) { return pCoreAstr->GetNearestBreathable(range); }

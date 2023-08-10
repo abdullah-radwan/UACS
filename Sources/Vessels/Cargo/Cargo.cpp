@@ -54,9 +54,20 @@ namespace UACS
 			case API::UNPACKABLE:
 				oapiReadItem_bool(cfg, "UnpackOnly", cargoInfo.unpackOnly);
 
-				if (oapiReadItem_int(cfg, "SpawnCount", spawnCount)) cargoInfo.unpackOnly = true;
-
 				if (!oapiReadItem_int(cfg, "UnpackingType", unpackType)) WarnAndTerminate("unpacking type", GetClassNameA(), "cargo");
+
+				oapiReadItem_int(cfg, "UnpackingMode", unpackMode);
+
+				if (oapiReadItem_int(cfg, "UnpackedCount", unpackedCount)) cargoInfo.unpackOnly = true;
+
+				if (unpackMode == UnpackMode::DELAYED && !oapiReadItem_int(cfg, "UnpackingDelay", unpackDelay))
+					WarnAndTerminate("unpacking delay", GetClassNameA(), "cargo"); 
+
+				if (!oapiReadItem_float(cfg, "UnpackedHeight", unpackFrontPos.y))
+				{
+					if (!oapiReadItem_vec(cfg, "UnpackedFrontPos", unpackFrontPos) || !oapiReadItem_vec(cfg, "UnpackedRightPos", unpackRightPos) ||
+						!oapiReadItem_vec(cfg, "UnpackedLeftPos", unpackLeftPos)) WarnAndTerminate("unpacked height", GetClassNameA(), "cargo");
+				}
 
 				switch (unpackType)
 				{
@@ -66,33 +77,19 @@ namespace UACS
 
 					if (!oapiReadItem_float(cfg, "UnpackedSize", unpackSize)) WarnAndTerminate("unpacked size", GetClassNameA(), "cargo");
 
-					if (!oapiReadItem_float(cfg, "UnpackedHeight", unpackFrontPos.y))
-					{
-						if (!oapiReadItem_vec(cfg, "UnpackedFrontPos", unpackFrontPos) || !oapiReadItem_vec(cfg, "UnpackedRightPos", unpackRightPos) ||
-							!oapiReadItem_vec(cfg, "UnpackedLeftPos", unpackLeftPos)) WarnAndTerminate("unpacked height", GetClassNameA(), "cargo");
-					}
-
 					oapiReadItem_vec(cfg, "UnpackedAttachPos", unpackAttachPos);
-					oapiReadItem_vec(cfg, "UnpackedCS", unpackCS);
-					oapiReadItem_vec(cfg, "UnpackedPMI", unpackPMI);
-
-					oapiReadItem_float(cfg, "ResourceContainerMass", resContMass);
-					oapiReadItem_bool(cfg, "Breathable", cargoInfo.breathable);
+					oapiReadItem_vec(cfg, "UnpackedCrossSections", unpackCS);
+					oapiReadItem_vec(cfg, "UnpackedInertia", unpackPMI);
+					oapiReadItem_bool(cfg, "UnpackedBreathable", cargoInfo.breathable);
 
 					break;
 
 				case UnpackType::VESSEL:
-					if (!oapiReadItem_int(cfg, "UnpackingMode", unpackMode)) WarnAndTerminate("unpacking mode", GetClassNameA(), "cargo");
+					if (!oapiReadItem_string(cfg, "UnpackedVesselName", buffer)) WarnAndTerminate("unpacked vessel name", GetClassNameA(), "cargo");
+					unpackVslName = buffer;
 
-					if (unpackMode == UnpackMode::DELAYED && !oapiReadItem_int(cfg, "UnpackingDelay", unpackDelay)) WarnAndTerminate("unpacking delay", GetClassNameA(), "cargo");
-
-					if (!oapiReadItem_string(cfg, "SpawnName", buffer)) WarnAndTerminate("spawn name", GetClassNameA(), "cargo");
-					spawnName = buffer;
-
-					if (!oapiReadItem_string(cfg, "SpawnModule", buffer)) WarnAndTerminate("spawn module", GetClassNameA(), "cargo");
-					spawnModule = buffer;
-
-					oapiReadItem_float(cfg, "SpawnHeight", unpackFrontPos.y);
+					if (!oapiReadItem_string(cfg, "UnpackedVesselModule", buffer)) WarnAndTerminate("unpacked vessel module", GetClassNameA(), "cargo");
+					unpackVslModule = buffer;
 
 					break;
 				}
@@ -108,6 +105,8 @@ namespace UACS
 
 		void Cargo::clbkLoadStateEx(FILEHANDLE scn, void* status)
 		{
+			if (cargoInfo.type != API::UNPACKABLE) { VESSEL4::clbkLoadStateEx(scn, status); return; }
+
 			char* line;
 
 			while (oapiReadScenario_nextline(scn, line))
@@ -116,36 +115,17 @@ namespace UACS
 				ss.str(line);
 				std::string data;
 
+				bool read{};
+
 				if (ss >> data)
 				{
-					switch (cargoInfo.type)
-					{
-					case API::UNPACKABLE:
-						switch (unpackType)
-						{
-						case UnpackType::MODULE:
-							if (data == "UNPACKED") ss >> cargoInfo.unpacked;
-							else ParseScenarioLineEx(line, status);
+					if (read = data == "UNPACKED") ss >> cargoInfo.unpacked;
 
-							if (cargoInfo.unpacked) SetUnpackedCaps(false);
-							break;
-
-						case UnpackType::VESSEL:
-							if (data == "LANDED") ss >> landed;
-							else if (data == "TIMING") ss >> timing;
-							else if (data == "TIMER") ss >> timer;
-							else ParseScenarioLineEx(line, status);
-
-							break;
-						}
-						break;
-
-					default:
-						ParseScenarioLineEx(line, status);
-						break;
-					}
+					if (cargoInfo.unpacked) SetUnpackedCaps(false);
+					else if (unpackMode == UnpackMode::DELAYED && (read = data == "UNPACK_TIMER")) ss >> unpackTimer;
 				}
-				else ParseScenarioLineEx(line, status);
+
+				if (!read) ParseScenarioLineEx(line, status);
 			}
 		}
 
@@ -153,24 +133,12 @@ namespace UACS
 		{
 			VESSEL4::clbkSaveState(scn);
 
-			switch (cargoInfo.type)
-			{
-			case API::UNPACKABLE:
-				switch (unpackType)
-				{
-				case UnpackType::MODULE:
-					oapiWriteScenario_int(scn, "UNPACKED", cargoInfo.unpacked);
-					break;
+			if (cargoInfo.type != API::UNPACKABLE) return;
 
-				case UnpackType::VESSEL:
-					oapiWriteScenario_int(scn, "LANDED", landed);
-					oapiWriteScenario_int(scn, "TIMING", timing);
-					oapiWriteScenario_float(scn, "TIMER", timer);
+			oapiWriteScenario_int(scn, "UNPACKED", cargoInfo.unpacked);
 
-					break;
-				}
-				break;
-			}
+			if (!cargoInfo.unpacked && unpackMode == UnpackMode::DELAYED && !GetAttachmentStatus(cargoInfo.hAttach))
+				oapiWriteScenario_float(scn, "UNPACK_TIMER", unpackTimer);
 		}
 
 		void Cargo::clbkPreStep(double simt, double simdt, double mjd)
@@ -190,23 +158,13 @@ namespace UACS
 				}
 			}
 
-			// Don't continue if the cargo is not unpackable or not Orbiter vessel
-			if (cargoInfo.type != API::UNPACKABLE || unpackType != UnpackType::VESSEL) return;
+			if (cargoInfo.type != API::UNPACKABLE || cargoInfo.unpacked || unpackMode == UnpackMode::MANUAL) return;
 
-			const bool attached = GetAttachmentStatus(cargoInfo.hAttach);
-
-			const bool released = this->attached && !attached;
-
-			this->attached = attached;
-
-			// Cancel the landing and timing if attached
-			if (attached)
+			if (GetAttachmentStatus(cargoInfo.hAttach))
 			{
-				if (landed) landed = false;
-				if (timing) { timer = 0; timing = false; }
+				if (unpackMode == UnpackMode::DELAYED) unpackTimer = 0;
 			}
-
-			else if (released)
+			else
 			{
 				switch (unpackMode)
 				{
@@ -215,23 +173,15 @@ namespace UACS
 					break;
 
 				case UnpackMode::DELAYED:
-					timing = true;
+					unpackTimer += simdt;
+					if (unpackTimer >= unpackDelay) { unpackTimer = 0; clbkUnpackCargo(); }
 					break;
 
 				case UnpackMode::LANDED:
-					landed = true;
+					if (GroundContact()) clbkUnpackCargo();
 					break;
 				}
 			}
-
-			if (timing)
-			{
-				timer += simdt;
-
-				if (timer >= unpackDelay) { timer = 0; timing = false; clbkUnpackCargo(); }
-			}
-
-			else if (landed && GroundContact()) { landed = false; clbkUnpackCargo(); }
 		}
 
 		const API::Cargo::CargoInfo* Cargo::clbkGetCargoInfo() { return &cargoInfo; }
@@ -276,12 +226,12 @@ namespace UACS
 
 				OBJHANDLE hCargo{};
 
-				for (int cargo{}; cargo < spawnCount; ++cargo)
+				for (int cargo{}; cargo < unpackedCount; ++cargo)
 				{
-					std::string spawnName = this->spawnName;
+					std::string spawnName = unpackVslName;
 					SetSpawnName(spawnName);
 
-					hCargo = oapiCreateVesselEx(spawnName.c_str(), spawnModule.c_str(), &status);
+					hCargo = oapiCreateVesselEx(spawnName.c_str(), unpackVslModule.c_str(), &status);
 
 					if (!hCargo) return false;
 
@@ -301,7 +251,7 @@ namespace UACS
 
 			VESSELSTATUS2 status = GetVesselStatus(this);
 
-			for (int cargo{ 1 }; cargo < spawnCount; ++cargo)
+			for (int cargo{ 1 }; cargo < unpackedCount; ++cargo)
 			{
 				std::string spawnName = GetClassNameA();
 
@@ -339,8 +289,8 @@ namespace UACS
 			// Replace the unpacked mesh with the packed mesh
 			InsertMesh(packedMesh.c_str(), 0);
 
-			if (cargoInfo.resource) SetEmptyMass(resContMass + contMass);
-			else SetEmptyMass((payloadMass * spawnCount) + contMass);
+			if (cargoInfo.resource) SetEmptyMass(contMass);
+			else SetEmptyMass((payloadMass * unpackedCount) + contMass);
 
 			SetSize(0.65);
 
@@ -393,7 +343,7 @@ namespace UACS
 
 			SetSize(unpackSize);
 
-			SetEmptyMass(cargoInfo.resource ? resContMass : payloadMass);
+			SetEmptyMass(cargoInfo.resource ? 0 : payloadMass);
 
 			double stiffness = 100 * GetMass();
 			double damping = 2 * sqrt(GetMass() * stiffness);

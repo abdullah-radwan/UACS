@@ -14,7 +14,7 @@ namespace UACS
 
 		inline std::unordered_map<OBJHANDLE, API::VslAstrInfo*> vslAstrMap;
 
-		inline std::string_view GetUACSVersion() { return "Pre-release 1"; }
+		inline std::string_view GetUACSVersion() { return "Pre-release 2"; }
 
 		inline size_t GetScnAstrCount() { return astrVector.size(); }
 
@@ -36,19 +36,6 @@ namespace UACS
 			const auto& vslPair = vslAstrMap.find(hVessel);
 
 			return (vslPair == vslAstrMap.end()) ? nullptr : vslPair->second;
-		}
-
-		inline void SetScnAstrInfoByIndex(size_t astrIdx, API::AstrInfo astrInfo) { astrVector.at(astrIdx)->clbkSetAstrInfo(astrInfo); }
-
-		inline bool SetScnAstrInfoByHandle(OBJHANDLE hAstr, API::AstrInfo astrInfo)
-		{
-			auto astrIt = std::ranges::find_if(astrVector, [hAstr](API::Astronaut* pAstr) { return pAstr->GetHandle() == hAstr; });
-
-			if (astrIt == astrVector.end()) return false;
-
-			(*astrIt)->clbkSetAstrInfo(astrInfo);
-
-			return true;
 		}
 
 		inline std::optional<size_t> GetEmptyStationIndex(std::span<const API::StationInfo> stations)

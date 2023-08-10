@@ -13,12 +13,14 @@
   <ItemGroup>
     <ClInclude Include="..\Common.h" />
     <ClInclude Include="Astronaut.h" />
+    <ClInclude Include="Cargo.h" />
     <ClInclude Include="CoreCommon.h" />
     <ClInclude Include="CoreDefs.h" />
     <ClInclude Include="Vessel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Astronaut.cpp" />
+    <ClCompile Include="Cargo.cpp" />
     <ClCompile Include="Vessel.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -32,11 +34,11 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">

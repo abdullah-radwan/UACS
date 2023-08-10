@@ -4,10 +4,6 @@
 #include <filesystem>
 #include <map>
 
-DLLCLBK void AddCargo(UACS::API::Cargo* pCargo) { UACS::Core::cargoVector.push_back(pCargo); }
-
-DLLCLBK void DeleteCargo(UACS::API::Cargo* pCargo) { std::erase(UACS::Core::cargoVector, pCargo); }
-
 DLLCLBK UACS::Core::Vessel* CreateVessel(VESSEL* pVessel, UACS::API::VslAstrInfo* pVslAstrInfo, UACS::API::VslCargoInfo* pVslCargoInfo)
 { return new UACS::Core::Vessel(pVessel, pVslAstrInfo, pVslCargoInfo); }
 
@@ -94,7 +90,7 @@ namespace UACS
 			for (auto& slotInfo : pVslCargoInfo->slots) slotInfo.cargoInfo = GetCargoInfoByHandle(pVessel->GetAttachmentStatus(slotInfo.hAttach));
 		}
 
-		void Vessel::SaveState(FILEHANDLE scn)
+		void Vessel::clbkSaveState(FILEHANDLE scn)
 		{
 			for (size_t idx{}; idx < pVslAstrInfo->stations.size(); ++idx)
 			{
@@ -129,10 +125,6 @@ namespace UACS
 		const API::AstrInfo* Vessel::GetAstrInfoByHandle(OBJHANDLE hAstr) { return Core::GetAstrInfoByHandle(hAstr); }
 
 		const API::VslAstrInfo* Vessel::GetVslAstrInfo(OBJHANDLE hVessel) { return Core::GetVslAstrInfo(hVessel); }
-
-		void Vessel::SetScnAstrInfoByIndex(size_t astrIdx, API::AstrInfo astrInfo) { Core::SetScnAstrInfoByIndex(astrIdx, astrInfo); }
-
-		bool Vessel::SetScnAstrInfoByHandle(OBJHANDLE hAstr, API::AstrInfo astrInfo) { return Core::SetScnAstrInfoByHandle(hAstr, astrInfo); }
 
 		size_t Vessel::GetAvailAstrCount() { return availAstrVector.size(); }
 
@@ -407,7 +399,7 @@ namespace UACS
 
 				auto cargoInfo = pCargo->clbkGetCargoInfo();
 
-				if (cargoInfo->unpacked && !pVslCargoInfo->astrMode) return API::GRPL_CRG_UNPCKD;
+				if (cargoInfo->unpacked && !pVslCargoInfo->grappleUnpacked) return API::GRPL_CRG_UNPCKD;
 
 				if (pCargo->GetAttachmentStatus(cargoInfo->hAttach)) return API::GRPL_CRG_ATCHD;
 
@@ -435,7 +427,7 @@ namespace UACS
 			{
 				auto cargoInfo = pCargo->clbkGetCargoInfo();
 
-				if (cargoInfo->unpacked && !pVslCargoInfo->astrMode) continue;
+				if (cargoInfo->unpacked && !pVslCargoInfo->grappleUnpacked) continue;
 
 				if (pCargo->GetAttachmentStatus(cargoInfo->hAttach)) continue;
 
@@ -621,7 +613,7 @@ namespace UACS
 				if (!slotInfo.cargoInfo) return { API::DRIN_SLT_EMPTY, 0 };
 
 				passCheck = true;
-				auto drainInfo = DrainUngrappledResource(resource, mass, (*slotInfo.cargoInfo).handle);
+				auto drainInfo = DrainScenarioResource(resource, mass, (*slotInfo.cargoInfo).handle);
 				passCheck = false;
 
 				return drainInfo;
@@ -632,7 +624,7 @@ namespace UACS
 				if (!slotInfo.cargoInfo) continue;
 
 				passCheck = true;
-				auto drainInfo = DrainUngrappledResource(resource, mass, (*slotInfo.cargoInfo).handle);
+				auto drainInfo = DrainScenarioResource(resource, mass, (*slotInfo.cargoInfo).handle);
 				passCheck = false;
 
 				return drainInfo;
@@ -641,7 +633,7 @@ namespace UACS
 			return { API::DRIN_SLT_EMPTY, 0 };
 		}
 
-		std::pair<API::DrainResult, double> Vessel::DrainUngrappledResource(std::string_view resource, double mass, OBJHANDLE hCargo)
+		std::pair<API::DrainResult, double> Vessel::DrainScenarioResource(std::string_view resource, double mass, OBJHANDLE hCargo)
 		{
 			if (hCargo)
 			{
@@ -691,7 +683,7 @@ namespace UACS
 
 				const char* attachLabel = pStation->GetAttachmentId(pStation->GetAttachmentHandle(true, attachIdx));
 
-				if (!attachLabel || (std::strcmp(attachLabel, "UACS_S") && std::strcmp(attachLabel, "UACS_BS"))) return { API::DRIN_RES_NOMATCH, 0 };
+				if (!attachLabel || (std::strcmp(attachLabel, "UACS_R") && std::strcmp(attachLabel, "UACS_RB"))) return { API::DRIN_RES_NOMATCH, 0 };
 
 				VECTOR3 stationPos;
 				pVessel->GetRelativePos(pStation->GetHandle(), stationPos);
@@ -713,7 +705,7 @@ namespace UACS
 
 				const char* attachLabel = pStation->GetAttachmentId(pStation->GetAttachmentHandle(true, attachIdx));
 
-				if (!attachLabel || (std::strcmp(attachLabel, "UACS_S") && std::strcmp(attachLabel, "UACS_BS"))) continue;
+				if (!attachLabel || (std::strcmp(attachLabel, "UACS_R") && std::strcmp(attachLabel, "UACS_RB"))) continue;
 
 				VECTOR3 stationPos;
 				pVessel->GetRelativePos(pStation->GetHandle(), stationPos);
@@ -729,7 +721,7 @@ namespace UACS
 		template<typename T>
 		bool Vessel::SetGroundPos(const VESSELSTATUS2& vslStatus, VECTOR3& initPos, API::GroundInfo gndInfo, std::span<T*> objSpan, const T* pOrgObj)
 		{
-			if (!pVslCargoInfo->astrMode)
+			if (!gndInfo.singleObject)
 			{
 				if (!gndInfo.colDir || !gndInfo.rowDir)
 				{
@@ -753,8 +745,8 @@ namespace UACS
 			pVessel->HorizonRot(initPos, initPos); initPos /= bodySize;
 			gndInfo.pos = initPos;
 
-			size_t cargoCount{}, colCount{};
-			double spaceMargin = 0.5 * gndInfo.cargoSpace;
+			size_t colCount{}, rowCount{};
+			double spaceMargin = 0.5 * gndInfo.colSpace;
 
 		groundPosLoop:
 			for (const T* pObject : objSpan)
@@ -768,28 +760,28 @@ namespace UACS
 				if (DistLngLat(bodySize, objStatus.surf_lng, objStatus.surf_lat,
 					vslStatus.surf_lng + (*gndInfo.pos).x, vslStatus.surf_lat + (*gndInfo.pos).z) > spaceMargin) continue;
 
-				else if (pVslCargoInfo->astrMode) return false;
+				else if (gndInfo.singleObject) return false;
 
-				++cargoCount;
+				++colCount;
 
-				if (cargoCount == gndInfo.cargoCount)
+				if (colCount >= gndInfo.rowCount)
 				{
-					++colCount;
+					++rowCount;
 
-					if (colCount == gndInfo.colCount) return false;
+					if (rowCount >= gndInfo.rowCount) return false;
 
-					cargoCount = 0;
+					colCount = 0;
 
 					gndInfo.pos = initPos;
 
-					(*gndInfo.pos).x += gndInfo.colSpace * colCount * (*gndInfo.rowDir).x / bodySize;
-					(*gndInfo.pos).z += gndInfo.colSpace * colCount * (*gndInfo.rowDir).z / bodySize;
+					(*gndInfo.pos).x += gndInfo.rowSpace * rowCount * (*gndInfo.colDir).x / bodySize;
+					(*gndInfo.pos).z += gndInfo.rowSpace * rowCount * (*gndInfo.colDir).z / bodySize;
 				}
 
 				else
 				{
-					(*gndInfo.pos).x += gndInfo.cargoSpace * (*gndInfo.colDir).x / bodySize;
-					(*gndInfo.pos).z += gndInfo.cargoSpace * (*gndInfo.colDir).z / bodySize;
+					(*gndInfo.pos).x += gndInfo.colSpace * (*gndInfo.rowDir).x / bodySize;
+					(*gndInfo.pos).z += gndInfo.colSpace * (*gndInfo.rowDir).z / bodySize;
 				}
 
 				goto groundPosLoop;
@@ -828,14 +820,14 @@ namespace UACS
 
 			FILEHANDLE hConfig = oapiOpenFile(configFile.c_str(), FILE_IN_ZEROONFAIL, CONFIG);
 
-			if (!hConfig) return false;
+			if (!hConfig) return true;
 
 			char buffer[256];
 
 			if (!oapiReadItem_string(hConfig, "UACS_RESOURCES", buffer))
 			{
 				oapiCloseFile(hConfig, FILE_IN_ZEROONFAIL);
-				return false;
+				return true;
 			}
 
 			oapiCloseFile(hConfig, FILE_IN_ZEROONFAIL);

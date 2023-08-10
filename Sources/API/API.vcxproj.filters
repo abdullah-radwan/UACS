@@ -18,9 +18,6 @@
     <ClInclude Include="Cargo.h">
       <Filter>Cargo</Filter>
     </ClInclude>
-    <ClInclude Include="CargoImpl.h">
-      <Filter>Cargo</Filter>
-    </ClInclude>
     <ClInclude Include="Common.h" />
     <ClInclude Include="Vessel.h">
       <Filter>Vessel</Filter>
@@ -30,11 +27,11 @@
     <ClCompile Include="Astronaut.cpp">
       <Filter>Astronaut</Filter>
     </ClCompile>
-    <ClCompile Include="CargoImpl.cpp">
-      <Filter>Cargo</Filter>
-    </ClCompile>
     <ClCompile Include="Vessel.cpp">
       <Filter>Vessel</Filter>
+    </ClCompile>
+    <ClCompile Include="Cargo.cpp">
+      <Filter>Cargo</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
