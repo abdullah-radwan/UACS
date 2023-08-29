@@ -1,9 +1,10 @@
 #pragma once
 #include "Cargo.h"
-#include "..\..\Common.h"
+#include "..\..\BaseCommon.h"
 
 #include <sstream>
 #include <array>
+#include <filesystem>
 
 DLLCLBK VESSEL* ovcInit(OBJHANDLE hVessel, int fModel) { return new UACS::Vessel::Cargo(hVessel, fModel); }
 
@@ -30,7 +31,7 @@ namespace UACS
 			else oapiWriteLog("UACS cargo warning: Couldn't load config file, will use default config");
 		}
 
-		Cargo::Cargo(OBJHANDLE hVessel, int fModel) : API::Cargo(hVessel, fModel) { if (!configLoaded) LoadConfig(); }
+		Cargo::Cargo(OBJHANDLE hVessel, int fModel) : UACS::Cargo(hVessel, fModel) { if (!configLoaded) LoadConfig(); }
 
 		void Cargo::clbkSetClassCaps(FILEHANDLE cfg)
 		{
@@ -45,13 +46,13 @@ namespace UACS
 
 			int type;
 			if (!oapiReadItem_int(cfg, "CargoType", type)) WarnAndTerminate("type", GetClassNameA(), "cargo");
-			cargoInfo.type = API::CargoType(type);
+			cargoInfo.type = UACS::CargoType(type);
 
 			if (oapiReadItem_string(cfg, "CargoResource", buffer)) { cargoInfo.resource = buffer; CreatePropellantResource(payloadMass); }
 
 			switch (cargoInfo.type)
 			{
-			case API::UNPACKABLE:
+			case UACS::UNPACKABLE:
 				oapiReadItem_bool(cfg, "UnpackOnly", cargoInfo.unpackOnly);
 
 				if (!oapiReadItem_int(cfg, "UnpackingType", unpackType)) WarnAndTerminate("unpacking type", GetClassNameA(), "cargo");
@@ -105,14 +106,13 @@ namespace UACS
 
 		void Cargo::clbkLoadStateEx(FILEHANDLE scn, void* status)
 		{
-			if (cargoInfo.type != API::UNPACKABLE) { VESSEL4::clbkLoadStateEx(scn, status); return; }
+			if (cargoInfo.type != UACS::UNPACKABLE) { VESSEL4::clbkLoadStateEx(scn, status); return; }
 
 			char* line;
 
 			while (oapiReadScenario_nextline(scn, line))
 			{
-				std::istringstream ss;
-				ss.str(line);
+				std::istringstream ss(line);
 				std::string data;
 
 				bool read{};
@@ -133,7 +133,7 @@ namespace UACS
 		{
 			VESSEL4::clbkSaveState(scn);
 
-			if (cargoInfo.type != API::UNPACKABLE) return;
+			if (cargoInfo.type != UACS::UNPACKABLE) return;
 
 			oapiWriteScenario_int(scn, "UNPACKED", cargoInfo.unpacked);
 
@@ -143,12 +143,11 @@ namespace UACS
 
 		void Cargo::clbkPreStep(double simt, double simdt, double mjd)
 		{
-			// If not landed but contacted the ground
 			if (!GetFlightStatus() && GroundContact())
 			{
 				VECTOR3 angAcc; GetAngularAcc(angAcc);
 
-				if (length(angAcc) < 0.1)
+				if (length(angAcc) < 0.5)
 				{
 					VESSELSTATUS2 status = GetVesselStatus(this);
 					status.status = 1;
@@ -158,7 +157,7 @@ namespace UACS
 				}
 			}
 
-			if (cargoInfo.type != API::UNPACKABLE || cargoInfo.unpacked || unpackMode == UnpackMode::MANUAL) return;
+			if (cargoInfo.type != UACS::UNPACKABLE || cargoInfo.unpacked || unpackMode == UnpackMode::MANUAL) return;
 
 			if (GetAttachmentStatus(cargoInfo.hAttach))
 			{
@@ -184,7 +183,7 @@ namespace UACS
 			}
 		}
 
-		const API::Cargo::CargoInfo* Cargo::clbkGetCargoInfo() { return &cargoInfo; }
+		const UACS::Cargo::CargoInfo* Cargo::clbkGetCargoInfo() { return &cargoInfo; }
 
 		double Cargo::clbkDrainResource(double mass)
 		{
@@ -216,7 +215,7 @@ namespace UACS
 
 		bool Cargo::clbkUnpackCargo() { return UnpackCargo(); }
 
-		bool Cargo::UnpackCargo(bool once)
+		bool Cargo::UnpackCargo(bool firstUnpack)
 		{
 			if (unpackType == UnpackType::VESSEL)
 			{
@@ -235,7 +234,7 @@ namespace UACS
 
 					if (!hCargo) return false;
 
-					if (once) break;
+					if (!firstUnpack) break;
 				}
 
 				oapiDeleteVessel(GetHandle(), hCargo);
@@ -247,25 +246,20 @@ namespace UACS
 
 			SetUnpackedCaps();
 
-			if (once || !cargoInfo.unpackOnly) return true;
+			if (!firstUnpack || !cargoInfo.unpackOnly) return true;
 
 			VESSELSTATUS2 status = GetVesselStatus(this);
 
 			for (int cargo{ 1 }; cargo < unpackedCount; ++cargo)
 			{
-				std::string spawnName = GetClassNameA();
-
-				// Remove UACS\Cargoes\ from the class name
-				spawnName.erase(0, 13);
-				spawnName.insert(0, "Cargo");
-
+				std::string spawnName = std::filesystem::path(GetClassNameA()).filename().string();
 				SetSpawnName(spawnName);
 
 				OBJHANDLE hCargo = oapiCreateVesselEx(spawnName.c_str(), GetClassNameA(), &status);
 
 				if (!hCargo) return false;
 
-				if (!static_cast<Cargo*>(oapiGetVesselInterface(hCargo))->UnpackCargo(true)) return false;
+				if (!static_cast<Cargo*>(oapiGetVesselInterface(hCargo))->UnpackCargo(false)) return false;
 			}
 
 			return true;

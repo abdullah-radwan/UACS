@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Pre-release 3 - 2023-08-29
+### Added
+- Lamp cargo.
+- GetStationResources and GetTotalAstrMass methods.
+- Module API setup walkthrough for vessels.
+### Changed
+- Renamed vessel API to module API. The API can be used by Orbiter modules other than vessels.
+- AstrInfo className to be the path from 'Config\Vessels' folder (i.e., the same value returned by GetClassNameA).
+- Scenario cargo attached to other vessels can no longer be drained from.
+- Renamed 'Astronaut' to 'Radwan'.
+- DrainResult enum.
+- Carrier HUD mode is now saved.
+### Fixed
+- Astronauts not releasing unpacked cargoes properly.
+
 ## Pre-release 2 - 2023-08-10
 ### Added
 - Developer manaul.

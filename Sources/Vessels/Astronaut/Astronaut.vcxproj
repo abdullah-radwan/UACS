@@ -21,7 +21,7 @@
     <ProjectGuid>{3688acb1-649f-4199-b5e1-8c4c5d734b98}</ProjectGuid>
     <RootNamespace>Astronaut</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>Vessel Astronaut</ProjectName>
+    <ProjectName>Astronaut</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

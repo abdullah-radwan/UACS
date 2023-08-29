@@ -13,6 +13,8 @@ mklink /j "%ORBITER_FOLDER%%LINK_PATH%" "%VESSEL_FOLDER%%LINK_PATH%"
 SET "LINK_PATH=Meshes\UACS"
 mklink /j "%ORBITER_FOLDER%%LINK_PATH%" "%VESSEL_FOLDER%%LINK_PATH%"
 
+mkdir "%ORBITER_FOLDER%Orbitersdk\include\UACS"
+
 SET "LINK_PATH=Common.h"
 mklink /h "%ORBITER_FOLDER%Orbitersdk\include\UACS\%LINK_PATH%" "%VESSEL_FOLDER%..\Sources\API\%LINK_PATH%"
 
@@ -22,7 +24,7 @@ mklink /h "%ORBITER_FOLDER%Orbitersdk\include\UACS\%LINK_PATH%" "%VESSEL_FOLDER%
 SET "LINK_PATH=Cargo.h"
 mklink /h "%ORBITER_FOLDER%Orbitersdk\include\UACS\%LINK_PATH%" "%VESSEL_FOLDER%..\Sources\API\%LINK_PATH%"
 
-SET "LINK_PATH=Vessel.h"
+SET "LINK_PATH=Module.h"
 mklink /h "%ORBITER_FOLDER%Orbitersdk\include\UACS\%LINK_PATH%" "%VESSEL_FOLDER%..\Sources\API\%LINK_PATH%"
 
 SET "LINK_PATH=Scenarios\UACS"

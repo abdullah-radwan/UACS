@@ -5,7 +5,7 @@ namespace UACS
 {
 	namespace Vessel
 	{
-		class Cargo : public API::Cargo
+		class Cargo : public UACS::Cargo
 		{
 		public:
 			Cargo(OBJHANDLE hVessel, int fModel);
@@ -17,7 +17,7 @@ namespace UACS
 
 			void clbkPreStep(double simt, double simdt, double mjd) override;
 
-			const API::Cargo::CargoInfo* clbkGetCargoInfo() override;
+			const UACS::Cargo::CargoInfo* clbkGetCargoInfo() override;
 			double clbkDrainResource(double mass) override;
 
 			bool clbkPackCargo() override;
@@ -31,7 +31,7 @@ namespace UACS
 			inline static bool enableFocus{};
 			static void LoadConfig();
 
-			API::Cargo::CargoInfo cargoInfo;
+			UACS::Cargo::CargoInfo cargoInfo;
 			std::string packedMesh, unpackedMesh;
 
 			double payloadMass, contMass;
@@ -51,10 +51,9 @@ namespace UACS
 			VECTOR3 unpackPMI{ -1,-1,-1 };
 			VECTOR3 unpackCS{ 20,20,20 };
 
-			bool UnpackCargo(bool once = false);
+			bool UnpackCargo(bool firstUnpack = true);
 			void SetPackedCaps(bool init = true);
 			void SetUnpackedCaps(bool init = true);
 		};
 	}
 }
-

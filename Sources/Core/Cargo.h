@@ -8,13 +8,13 @@ namespace UACS
 		class Cargo
 		{
 		public:
-			Cargo(API::Cargo* pCargo);
+			Cargo(UACS::Cargo* pCargo);
 			virtual void Destroy() noexcept;
 
 			virtual std::string_view GetUACSVersion();
 
 		private:
-			API::Cargo* pCargo;
+			UACS::Cargo* pCargo;
 		};
 	}
 }

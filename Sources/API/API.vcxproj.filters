@@ -7,7 +7,7 @@
     <Filter Include="Cargo">
       <UniqueIdentifier>{ad0a307c-e298-4026-8e3f-6d267b2a4343}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Vessel">
+    <Filter Include="Module">
       <UniqueIdentifier>{e6efb502-8428-409e-be42-ff63b7617f5a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -19,16 +19,16 @@
       <Filter>Cargo</Filter>
     </ClInclude>
     <ClInclude Include="Common.h" />
-    <ClInclude Include="Vessel.h">
-      <Filter>Vessel</Filter>
+    <ClInclude Include="Module.h">
+      <Filter>Module</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Astronaut.cpp">
       <Filter>Astronaut</Filter>
     </ClCompile>
-    <ClCompile Include="Vessel.cpp">
-      <Filter>Vessel</Filter>
+    <ClCompile Include="Module.cpp">
+      <Filter>Module</Filter>
     </ClCompile>
     <ClCompile Include="Cargo.cpp">
       <Filter>Cargo</Filter>

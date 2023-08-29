@@ -1,14 +1,14 @@
-#include "CoreCommon.h"
+#include "Common.h"
 
 #include <map>
 
-DLLCLBK UACS::Core::Astronaut* CreateAstronaut(UACS::API::Astronaut* pAstr) { return new UACS::Core::Astronaut(pAstr); }
+DLLCLBK UACS::Core::Astronaut* CreateAstronaut(UACS::Astronaut* pAstr) { return new UACS::Core::Astronaut(pAstr); }
 
 namespace UACS
 {
 	namespace Core
 	{
-		Astronaut::Astronaut(API::Astronaut* pAstr) : pAstr(pAstr) { astrVector.push_back(pAstr); }
+		Astronaut::Astronaut(UACS::Astronaut* pAstr) : pAstr(pAstr) { astrVector.push_back(pAstr); }
 
 		void Astronaut::Destroy() noexcept
 		{
@@ -18,18 +18,18 @@ namespace UACS
 
 		std::string_view Astronaut::GetUACSVersion() { return Core::GetUACSVersion(); }
 
-		size_t Astronaut::GetScnAstrCount() { return Core::GetScnAstrCount(); }
+		size_t Astronaut::GetScnAstrCount() { return astrVector.size(); }
 
-		std::pair<OBJHANDLE, const API::AstrInfo*> Astronaut::GetAstrInfoByIndex(size_t astrIdx) { return Core::GetAstrInfoByIndex(astrIdx); }
+		std::pair<OBJHANDLE, const UACS::AstrInfo*> Astronaut::GetAstrInfoByIndex(size_t astrIdx) { return Core::GetAstrInfoByIndex(astrIdx); }
 
-		const API::AstrInfo* Astronaut::GetAstrInfoByHandle(OBJHANDLE hAstr) { return Core::GetAstrInfoByHandle(hAstr); }
+		const UACS::AstrInfo* Astronaut::GetAstrInfoByHandle(OBJHANDLE hAstr) { return Core::GetAstrInfoByHandle(hAstr); }
 
-		const API::VslAstrInfo* Astronaut::GetVslAstrInfo(OBJHANDLE hVessel) { return Core::GetVslAstrInfo(hVessel); }
+		const UACS::VslAstrInfo* Astronaut::GetVslAstrInfo(OBJHANDLE hVessel) { return Core::GetVslAstrInfo(hVessel); }
 
-		std::optional<API::NearestAirlock> Astronaut::GetNearestAirlock(double range)
+		std::optional<UACS::NearestAirlock> Astronaut::GetNearestAirlock(double range)
 		{
-			API::NearestAirlock nearAirlock;
-			API::VslAstrInfo* nearVslInfo;
+			UACS::NearestAirlock nearAirlock;
+			UACS::VslAstrInfo* nearVslInfo;
 
 			double nearDistance = range;
 
@@ -120,7 +120,7 @@ namespace UACS
 				range = distance;
 			}
 
-			for (API::Cargo* pCargo : cargoVector)
+			for (UACS::Cargo* pCargo : cargoVector)
 			{
 				auto cargoInfo = pCargo->clbkGetCargoInfo();
 				if (!cargoInfo->breathable || !cargoInfo->unpacked) continue;
@@ -159,78 +159,83 @@ namespace UACS
 			return result.first;
 		}
 
-		API::IngressResult Astronaut::Ingress(OBJHANDLE hVessel, std::optional<size_t> airlockIdx, std::optional<size_t> stationIdx)
+		UACS::IngressResult Astronaut::Ingress(OBJHANDLE hVessel, std::optional<size_t> airlockIdx, std::optional<size_t> stationIdx)
 		{
 			if (hVessel)
 			{
 				const auto& vesselPair = vslAstrMap.find(hVessel);
 
-				if (vesselPair == vslAstrMap.end()) return API::INGRS_ARLCK_UNDEF;
+				if (vesselPair == vslAstrMap.end()) return UACS::INGRS_ARLCK_UNDEF;
 
 				const auto& airlocks = vesselPair->second->airlocks;
 
-				if (airlocks.empty()) return API::INGRS_ARLCK_UNDEF;
+				if (airlocks.empty()) return UACS::INGRS_ARLCK_UNDEF;
 
 				const auto& stations = vesselPair->second->stations;
 
-				if (stations.empty()) return API::INGRS_STN_UNDEF;
+				if (stations.empty()) return UACS::INGRS_STN_UNDEF;
 
 				VESSEL* pVessel = oapiGetVesselInterface(hVessel);
 
 				if (!airlockIdx)
 				{
-					static auto pred = [pVessel](const API::AirlockInfo& airlockInfo) { return airlockInfo.open && !(airlockInfo.hDock && pVessel->GetDockStatus(airlockInfo.hDock)); };
+					static auto pred = [pVessel](const UACS::AirlockInfo& airlockInfo) { return airlockInfo.open && !(airlockInfo.hDock && pVessel->GetDockStatus(airlockInfo.hDock)); };
 
 					auto airlockIt = std::ranges::find_if(airlocks, pred);
 
-					if (airlockIt == airlocks.end()) return API::INGRS_ARLCK_CLSD;
+					if (airlockIt == airlocks.end()) return UACS::INGRS_ARLCK_CLSD;
 
 					airlockIdx = airlockIt - airlocks.begin();
 				}
 
-				else if (!airlocks.at(*airlockIdx).open) return API::INGRS_ARLCK_CLSD;
+				else if (!airlocks.at(*airlockIdx).open) return UACS::INGRS_ARLCK_CLSD;
 
 				if (!stationIdx)
 				{
 					stationIdx = GetEmptyStationIndex(stations);
 
-					if (!stationIdx) return API::INGRS_STN_OCCP;
+					if (!stationIdx) return UACS::INGRS_STN_OCCP;
 				}
 
-				else if (stations.at(*stationIdx).astrInfo) return API::INGRS_STN_OCCP;
+				else if (stations.at(*stationIdx).astrInfo) return UACS::INGRS_STN_OCCP;
 
-				const API::AirlockInfo& airlockInfo = airlocks.at(*airlockIdx);
+				const UACS::AirlockInfo& airlockInfo = airlocks.at(*airlockIdx);
 
-				if (airlockInfo.hDock && pVessel->GetDockStatus(airlockInfo.hDock)) return API::INGRS_ARLCK_DCKD;
+				if (airlockInfo.hDock && pVessel->GetDockStatus(airlockInfo.hDock)) return UACS::INGRS_ARLCK_DCKD;
 
 				VECTOR3 airlockPos;
 				pVessel->Local2Global(airlockInfo.pos, airlockPos);
 				pAstr->Global2Local(airlockPos, airlockPos);
 
-				if (length(airlockPos) > 10) return API::INGRS_NOT_IN_RNG;
+				if (length(airlockPos) > 10) return UACS::INGRS_NOT_IN_RNG;
 			}
-
 			else
 			{
 				auto nearAirlock = GetNearestAirlock(10);
 
-				if (!nearAirlock) return API::INGRS_NOT_IN_RNG;
+				if (!nearAirlock) return UACS::INGRS_NOT_IN_RNG;
 
 				hVessel = (*nearAirlock).hVessel;
 
 				stationIdx = (*nearAirlock).stationIdx;
 			}
 
-			vslAstrMap.at(hVessel)->stations.at(*stationIdx).astrInfo = *pAstr->clbkGetAstrInfo();
+			auto& astrInfo = vslAstrMap.at(hVessel)->stations.at(*stationIdx).astrInfo = *pAstr->clbkGetAstrInfo();
 
 			if (VESSEL* pVessel = oapiGetVesselInterface(hVessel); pVessel->Version() >= 3)
-				static_cast<VESSEL3*>(pVessel)->clbkGeneric(API::UACS_MSG, API::INGRS_SUCCED, &(*stationIdx));
+			{
+				if (!static_cast<VESSEL3*>(pVessel)->clbkGeneric(UACS::MSG, UACS::ASTR_INGRS, &(*stationIdx)))
+				{
+					astrInfo = {};
+					return UACS::INGRS_VSL_REJC;
+				}
+			}
 
 			oapiDeleteVessel(pAstr->GetHandle(), hVessel);
 
 			oapiSetFocusObject(hVessel);
 
-			return API::INGRS_SUCCED;
+			return UACS::INGRS_SUCCED;
 		}
 	}
 }

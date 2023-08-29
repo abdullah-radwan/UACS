@@ -33,12 +33,12 @@ Carrier:UACS\Carrier
   PRPLEVEL 0:0.5
   ASTR_STATION 0
   ASTR_NAME Abdullah Radwan
-  ASTR_ROLE Commander
+  ASTR_ROLE commander
   ASTR_MASS 70.000000
   ASTR_OXYGEN 1.000000
   ASTR_FUEL 1.000000
   ASTR_ALIVE 1
-  ASTR_CLASSNAME Astronaut
+  ASTR_CLASSNAME UACS\Astronauts\Radwan
 END
 CargoFuel1:UACS\Cargoes\FuelContainer
   STATUS Orbiting Earth

@@ -8,29 +8,29 @@ namespace UACS
 		class Astronaut
 		{
 		public:
-			Astronaut(API::Astronaut* pAstr);
+			Astronaut(UACS::Astronaut* pAstr);
 			virtual void Destroy() noexcept;
 
 			virtual std::string_view GetUACSVersion();
 
 			virtual size_t GetScnAstrCount();
 
-			virtual std::pair<OBJHANDLE, const API::AstrInfo*> GetAstrInfoByIndex(size_t);
+			virtual std::pair<OBJHANDLE, const UACS::AstrInfo*> GetAstrInfoByIndex(size_t);
 
-			virtual const API::AstrInfo* GetAstrInfoByHandle(OBJHANDLE);
+			virtual const UACS::AstrInfo* GetAstrInfoByHandle(OBJHANDLE);
 
-			virtual const API::VslAstrInfo* GetVslAstrInfo(OBJHANDLE);
+			virtual const UACS::VslAstrInfo* GetVslAstrInfo(OBJHANDLE);
 
-			virtual std::optional<API::NearestAirlock> GetNearestAirlock(double);
+			virtual std::optional<UACS::NearestAirlock> GetNearestAirlock(double);
 
 			virtual std::pair<OBJHANDLE, VECTOR3> GetNearestBreathable(double);
 
 			virtual bool InBreathableArea();
 
-			virtual API::IngressResult Ingress(OBJHANDLE, std::optional<size_t>, std::optional<size_t>);
+			virtual UACS::IngressResult Ingress(OBJHANDLE, std::optional<size_t>, std::optional<size_t>);
 
 		private:
-			API::Astronaut* pAstr;
+			UACS::Astronaut* pAstr;
 			bool passCheck{};
 		};
 	}

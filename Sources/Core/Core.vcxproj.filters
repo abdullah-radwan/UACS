@@ -4,22 +4,22 @@
     <ClCompile Include="Astronaut.cpp">
       <Filter>Astronaut</Filter>
     </ClCompile>
-    <ClCompile Include="Vessel.cpp">
-      <Filter>Vessel</Filter>
+    <ClCompile Include="Module.cpp">
+      <Filter>Module</Filter>
     </ClCompile>
     <ClCompile Include="Cargo.cpp">
       <Filter>Cargo</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CoreCommon.h" />
-    <ClInclude Include="CoreDefs.h" />
-    <ClInclude Include="..\Common.h" />
+    <ClInclude Include="Common.h" />
+    <ClInclude Include="Defs.h" />
+    <ClInclude Include="..\BaseCommon.h" />
     <ClInclude Include="Astronaut.h">
       <Filter>Astronaut</Filter>
     </ClInclude>
-    <ClInclude Include="Vessel.h">
-      <Filter>Vessel</Filter>
+    <ClInclude Include="Module.h">
+      <Filter>Module</Filter>
     </ClInclude>
     <ClInclude Include="Cargo.h">
       <Filter>Cargo</Filter>
@@ -29,11 +29,11 @@
     <Filter Include="Astronaut">
       <UniqueIdentifier>{74cbb5f6-3094-49a5-9816-54d6038def6a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Vessel">
-      <UniqueIdentifier>{193fabff-2f2d-4047-b5e8-f542d3c4108d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Cargo">
       <UniqueIdentifier>{2a2ee8da-861f-45d4-b9e9-9f869c3c6fea}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Module">
+      <UniqueIdentifier>{193fabff-2f2d-4047-b5e8-f542d3c4108d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

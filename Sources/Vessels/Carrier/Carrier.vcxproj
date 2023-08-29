@@ -15,7 +15,7 @@
     <ProjectGuid>{BA832307-A6C6-4EB0-8915-15A442D4D5C9}</ProjectGuid>
     <RootNamespace>Carrier</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>Vessel Carrier</ProjectName>
+    <ProjectName>Carrier</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

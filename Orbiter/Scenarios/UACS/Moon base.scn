@@ -115,7 +115,7 @@ CargoTableChairs1:UACS\Cargoes\TableChairs
   AFCMODE 7
   UNPACKED 1
 END
-AstronautRadwan1:UACS\Astronauts\Astronaut
+AstronautRadwan1:UACS\Astronauts\Radwan
   STATUS Landed Moon
   POS -16.4524955 22.1019176
   HEADING 277.50
@@ -126,7 +126,7 @@ AstronautRadwan1:UACS\Astronauts\Astronaut
   PRPLEVEL 0:1.000000 1:0.989840
   NAVFREQ 0 0
   NAME Abdullah Radwan
-  ROLE Commander
+  ROLE commander
   MASS 70.000000
   ALIVE 1
   SUIT_ON 1

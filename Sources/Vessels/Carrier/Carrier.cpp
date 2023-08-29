@@ -1,6 +1,8 @@
 #include "Carrier.h"
+
 #include <format>
 #include <array>
+#include <sstream>
 
 DLLCLBK VESSEL* ovcInit(OBJHANDLE hvessel, int flightmodel) { return new UACS::Vessel::Carrier(hvessel, flightmodel); }
 
@@ -10,39 +12,32 @@ namespace UACS
 {
 	namespace Vessel
 	{
-		Carrier::Carrier(OBJHANDLE hVessel, int flightmodel) : VESSEL4(hVessel, flightmodel), vslAPI(this, &vslAstrInfo, &vslCargoInfo)
+		Carrier::Carrier(OBJHANDLE hVessel, int flightmodel) : VESSEL4(hVessel, flightmodel), mdlAPI(this, &vslAstrInfo, &vslCargoInfo)
 		{
-			cargoHUD.msg = std::format("UACS version: {}", vslAPI.GetUACSVersion());
+			cargoHUD.msg = std::format("UACS version: {}", mdlAPI.GetUACSVersion());
 			cargoHUD.timer = 0;
 		}
 
 		void Carrier::clbkSetClassCaps(FILEHANDLE cfg)
 		{
-			// UACS airlock
-			API::AirlockInfo airInfo;
-			API::GroundInfo airGndInfo;
+			UACS::AirlockInfo airInfo;
 
-			airInfo.name = "UACS";
+			airInfo.name = "Airlock";
 			airInfo.pos = { 0,-0.74, 3.5 };
 			airInfo.dir = { 0,0,-1 };
 			airInfo.rot = { -1,0,0 };
 			airInfo.hDock = CreateDock({ 0,-1,-1 }, { 0,-1,0 }, { 0,0,-1 });
-
-			airGndInfo.pos = { 4,0,-1.3 };
-			airInfo.gndInfo = airGndInfo;
+			airInfo.gndInfo.pos = { 4,0,-1.3 };
 
 			vslAstrInfo.airlocks.push_back(airInfo);
-			vslAstrInfo.stations.push_back({ "Pilot" });
+			vslAstrInfo.stations.emplace_back("Pilot");
 
-			// UACS cargo slot
-			API::SlotInfo slotInfo;
-			API::GroundInfo slotGndInfo;
+			UACS::SlotInfo slotInfo;
 
-			slotInfo.hAttach = CreateAttachment(false, { 0,1.95,-1 }, { 0,1,0 }, { 0,0,1 }, "UACS");
+			slotInfo.hAttach = CreateAttachment(false, { 0,1.3,-1 }, { 0,1,0 }, { 0,0,1 }, "UACS");
+			slotInfo.holdDir = { 0, -1, 0 };
 			slotInfo.relVel = 0.05;
-
-			slotGndInfo.pos = { -4,0,-1.3 };
-			slotInfo.gndInfo = slotGndInfo;
+			slotInfo.gndInfo.pos = { -4,0,-1.3 };
 
 			vslCargoInfo.slots.push_back(slotInfo);
 
@@ -218,37 +213,57 @@ namespace UACS
 		{
 			char* line;
 
-			while (oapiReadScenario_nextline(scn, line)) if (!vslAPI.ParseScenarioLine(line)) ParseScenarioLineEx(line, status);
+			while (oapiReadScenario_nextline(scn, line)) 
+			{
+				std::istringstream ss(line);
+				std::string data;
+
+				if (ss >> data && data == "HUD_MODE") ss >> hudMode;
+
+				else if (!mdlAPI.ParseScenarioLine(line)) ParseScenarioLineEx(line, status);
+			}
 		}
 
 		void Carrier::clbkSaveState(FILEHANDLE scn)
 		{
 			VESSEL4::clbkSaveState(scn);
+			mdlAPI.clbkSaveState(scn);
 
-			vslAPI.clbkSaveState(scn);
+			oapiWriteScenario_int(scn, "HUD_MODE", hudMode);
 		}
 
 		void Carrier::clbkPostCreation()
 		{
-			vslAPI.clbkPostCreation();
+			mdlAPI.clbkPostCreation();
 
-			for (const auto& station : vslAstrInfo.stations)
-				if (station.astrInfo) SetEmptyMass(GetEmptyMass() + (*station.astrInfo).mass);
+			SetEmptyMass(GetEmptyMass() + mdlAPI.GetTotalAstrMass());
 		}
 
 		int Carrier::clbkGeneric(int msgid, int prm, void* context)
 		{
-			if (msgid == UACS::API::UACS_MSG && prm == UACS::API::INGRS_SUCCED)
+			if (msgid == UACS::MSG)
 			{
-				astrHUD.msg = "An astronaut ingressed!";
-				astrHUD.timer = 0;
+				switch (prm)
+				{
+				case UACS::ASTR_INGRS:
+				{
+					auto& astrInfo = *(vslAstrInfo.stations.at(*static_cast<size_t*>(context)).astrInfo);
+					SetEmptyMass(GetEmptyMass() + astrInfo.mass);
 
-				auto& astrInfo = *(vslAstrInfo.stations.at(*static_cast<size_t*>(context)).astrInfo);
-				SetEmptyMass(GetEmptyMass() + astrInfo.mass);
+					return 1;
+				}
+				case UACS::ASTR_EGRS:
+				{
+					auto& astrInfo = *(vslAstrInfo.stations.at(*static_cast<size_t*>(context)).astrInfo);
+					SetEmptyMass(GetEmptyMass() - astrInfo.mass);
 
-				return 1;
+					return 1;
+				}
+				default:
+					return 0;
+				}
 			}
-
+			
 			return 0;
 		}
 
@@ -268,19 +283,19 @@ namespace UACS
 				switch (key)
 				{
 				case OAPI_KEY_NUMPAD8:
-					astrHUD.idx + 1 < vslAPI.GetAvailAstrCount() ? ++astrHUD.idx : astrHUD.idx = 0;
+					astrHUD.idx + 1 < mdlAPI.GetAvailAstrCount() ? ++astrHUD.idx : astrHUD.idx = 0;
 					return 1;
 
 				case OAPI_KEY_NUMPAD2:
-					astrHUD.idx > 0 ? --astrHUD.idx : astrHUD.idx = vslAPI.GetAvailAstrCount() - 1;
+					astrHUD.idx > 0 ? --astrHUD.idx : astrHUD.idx = mdlAPI.GetAvailAstrCount() - 1;
 					return 1;
 
 				case OAPI_KEY_NUMPAD6:
-					cargoHUD.idx + 1 < vslAPI.GetAvailCargoCount() ? ++cargoHUD.idx : cargoHUD.idx = 0;
+					cargoHUD.idx + 1 < mdlAPI.GetAvailCargoCount() ? ++cargoHUD.idx : cargoHUD.idx = 0;
 					return 1;
 
 				case OAPI_KEY_NUMPAD4:
-					cargoHUD.idx > 0 ? --cargoHUD.idx : cargoHUD.idx = vslAPI.GetAvailCargoCount() - 1;
+					cargoHUD.idx > 0 ? --cargoHUD.idx : cargoHUD.idx = mdlAPI.GetAvailCargoCount() - 1;
 					return 1;
 				}
 			}
@@ -290,17 +305,17 @@ namespace UACS
 				switch (key)
 				{
 				case OAPI_KEY_A:
-					switch (vslAPI.AddAstronaut(astrHUD.idx))
+					switch (mdlAPI.AddAstronaut(astrHUD.idx))
 					{
-					case UACS::API::INGRS_SUCCED:
+					case UACS::INGRS_SUCCED:
 						astrHUD.msg = "Success: Selected astronaut added.";
 						break;
 
-					case UACS::API::INGRS_STN_OCCP:
+					case UACS::INGRS_STN_OCCP:
 						astrHUD.msg = "Error: Station occupied.";
 						break;
 
-					case UACS::API::INGRS_FAIL:
+					case UACS::INGRS_FAIL:
 						astrHUD.msg = "Error: The addition failed.";
 						break;
 					}
@@ -309,28 +324,29 @@ namespace UACS
 
 				case OAPI_KEY_E:
 				{
-					auto astrInfo = vslAstrInfo.stations.at(0).astrInfo;
-
-					switch (vslAPI.EgressAstronaut(0, 0))
+					switch (mdlAPI.EgressAstronaut(0, 0))
 					{
-					case UACS::API::EGRS_SUCCEDED:
+					case UACS::EGRS_SUCCED:
 						astrHUD.msg = "Success: Astronaut egressed.";
-						SetEmptyMass(GetEmptyMass() - (*astrInfo).mass);
 						break;
 
-					case UACS::API::EGRS_STN_EMPTY:
+					case UACS::EGRS_STN_EMPTY:
 						astrHUD.msg = "Error: No astronaut onboard.";
 						break;
 
-					case UACS::API::EGRS_ARLCK_DCKD:
+					case UACS::EGRS_ARLCK_DCKD:
 						astrHUD.msg = "Error: Airlock blocked by a docked vessel.";
 						break;
 
-					case UACS::API::EGRS_NO_EMPTY_POS:
+					case UACS::EGRS_NO_EMPTY_POS:
 						astrHUD.msg = "Error: No empty position nearby.";
 						break;
 
-					case UACS::API::EGRS_FAIL:
+					case UACS::EGRS_INFO_NOT_SET:
+						astrHUD.msg = "Error: Astronaut egressed but info not set.";
+						break;
+
+					case UACS::EGRS_FAIL:
 						astrHUD.msg = "Error: The egress failed.";
 						break;
 					}
@@ -339,36 +355,36 @@ namespace UACS
 				}
 
 				case OAPI_KEY_T:
-					switch (vslAPI.TransferAstronaut(0, 0))
+					switch (mdlAPI.TransferAstronaut(0, 0))
 					{
-					case UACS::API::TRNS_SUCCEDED:
+					case UACS::TRNS_SUCCED:
 						astrHUD.msg = "Success: Astronaut trasnfered.";
 						break;
-					case UACS::API::TRNS_STN_EMPTY:
+					case UACS::TRNS_STN_EMPTY:
 						astrHUD.msg = "Error: No astronaut onboard.";
 						break;
 
-					case UACS::API::TRNS_DOCK_EMPTY:
+					case UACS::TRNS_DOCK_EMPTY:
 						astrHUD.msg = "Error: No docked vessel.";
 						break;
 
-					case UACS::API::TRNS_TGT_ARLCK_UNDEF:
+					case UACS::TRNS_TGT_ARLCK_UNDEF:
 						astrHUD.msg = "Error: No airlock connected to docking port.";
 						break;
 
-					case UACS::API::TRNS_TGT_ARLCK_CLSD:
+					case UACS::TRNS_TGT_ARLCK_CLSD:
 						astrHUD.msg = "Error: Docked vessel airlock closed.";
 						break;
 
-					case UACS::API::TRNS_TGT_STN_UNDEF:
+					case UACS::TRNS_TGT_STN_UNDEF:
 						astrHUD.msg = "Error: No stations in docked vessel.";
 						break;
 
-					case UACS::API::TRNS_TGT_STN_OCCP:
+					case UACS::TRNS_TGT_STN_OCCP:
 						astrHUD.msg = "Error: All docked vessel stations occupied.";
 						break;
 
-					case UACS::API::TRNS_FAIL:
+					case UACS::TRNS_FAIL:
 						astrHUD.msg = "Error: The transfer failed.";
 						break;
 					}
@@ -389,17 +405,17 @@ namespace UACS
 				switch (key)
 				{
 				case OAPI_KEY_A:
-					switch (vslAPI.AddCargo(cargoHUD.idx))
+					switch (mdlAPI.AddCargo(cargoHUD.idx))
 					{
-					case UACS::API::GRPL_SUCCED:
+					case UACS::GRPL_SUCCED:
 						cargoHUD.msg = "Success: Selected cargo added.";
 						break;
 
-					case UACS::API::GRPL_SLT_OCCP:
+					case UACS::GRPL_SLT_OCCP:
 						cargoHUD.msg = "Error: Slot occupied.";
 						break;
 
-					case UACS::API::GRPL_FAIL:
+					case UACS::GRPL_FAIL:
 						cargoHUD.msg = "Error: The addition failed.";
 						break;
 					}
@@ -407,21 +423,21 @@ namespace UACS
 					return 1;
 
 				case OAPI_KEY_G:
-					switch (vslAPI.GrappleCargo())
+					switch (mdlAPI.GrappleCargo())
 					{
-					case UACS::API::GRPL_SUCCED:
+					case UACS::GRPL_SUCCED:
 						cargoHUD.msg = "Success: Nearest cargo grappled.";
 						break;
 
-					case UACS::API::GRPL_SLT_OCCP:
+					case UACS::GRPL_SLT_OCCP:
 						cargoHUD.msg = "Error: Slot occupied.";
 						break;
 
-					case UACS::API::GRPL_NOT_IN_RNG:
+					case UACS::GRPL_NOT_IN_RNG:
 						cargoHUD.msg = "Error: No grappleable cargo in range.";
 						break;
 
-					case UACS::API::GRPL_FAIL:
+					case UACS::GRPL_FAIL:
 						cargoHUD.msg = "Error: The grapple failed.";
 						break;
 					}
@@ -429,21 +445,21 @@ namespace UACS
 					return 1;
 
 				case OAPI_KEY_R:
-					switch (vslAPI.ReleaseCargo())
+					switch (mdlAPI.ReleaseCargo())
 					{
-					case UACS::API::RLES_SUCCED:
+					case UACS::RLES_SUCCED:
 						cargoHUD.msg = "Success: Cargo released.";
 						break;
 
-					case UACS::API::RLES_SLT_EMPTY:
+					case UACS::RLES_SLT_EMPTY:
 						cargoHUD.msg = "Error: Slot empty.";
 						break;
 
-					case UACS::API::RLES_NO_EMPTY_POS:
+					case UACS::RLES_NO_EMPTY_POS:
 						cargoHUD.msg = "Error: No empty position nearby.";
 						break;
 
-					case UACS::API::RLES_FAIL:
+					case UACS::RLES_FAIL:
 						cargoHUD.msg = "Error: The release failed.";
 						break;
 					}
@@ -451,17 +467,17 @@ namespace UACS
 					return 1;
 
 				case OAPI_KEY_P:
-					switch (vslAPI.PackCargo())
+					switch (mdlAPI.PackCargo())
 					{
-					case UACS::API::PACK_SUCCED:
+					case UACS::PACK_SUCCED:
 						cargoHUD.msg = "Success: Nearest cargo packed.";
 						break;
 
-					case UACS::API::PACK_NOT_IN_RNG:
+					case UACS::PACK_NOT_IN_RNG:
 						cargoHUD.msg = "Error: No packable cargo in range.";
 						break;
 
-					case UACS::API::PACK_FAIL:
+					case UACS::PACK_FAIL:
 						cargoHUD.msg = "Error: The packing failed.";
 						break;
 					}
@@ -469,17 +485,17 @@ namespace UACS
 					return 1;
 
 				case OAPI_KEY_U:
-					switch (vslAPI.UnpackCargo())
+					switch (mdlAPI.UnpackCargo())
 					{
-					case UACS::API::PACK_SUCCED:
+					case UACS::PACK_SUCCED:
 						cargoHUD.msg = "Success: Nearest cargo unpacked.";
 						break;
 
-					case UACS::API::PACK_NOT_IN_RNG:
+					case UACS::PACK_NOT_IN_RNG:
 						cargoHUD.msg = "Error: No unpackable cargo in range.";
 						break;
 
-					case UACS::API::PACK_FAIL:
+					case UACS::PACK_FAIL:
 						cargoHUD.msg = "Error: The unpacking failed.";
 						break;
 					}
@@ -490,24 +506,24 @@ namespace UACS
 				{
 					double reqMass = GetMaxFuelMass() - GetFuelMass();
 
-					auto drainInfo = vslAPI.DrainGrappledResource("fuel", reqMass);
+					auto drainInfo = mdlAPI.DrainGrappledResource("fuel", reqMass);
 
-					if (drainInfo.first != UACS::API::DRIN_SUCCED) drainInfo = vslAPI.DrainScenarioResource("fuel", reqMass);
+					if (drainInfo.first != UACS::DRIN_SUCCED) drainInfo = mdlAPI.DrainScenarioResource("fuel", reqMass);
 
-					if (drainInfo.first != UACS::API::DRIN_SUCCED) drainInfo = vslAPI.DrainStationResource("fuel", reqMass);
+					if (drainInfo.first != UACS::DRIN_SUCCED) drainInfo = mdlAPI.DrainStationResource("fuel", reqMass);
 
 					switch (drainInfo.first)
 					{
-					case UACS::API::DRIN_SUCCED:
+					case UACS::DRIN_SUCCED:
 						SetFuelMass(GetFuelMass() + drainInfo.second);
 						cargoHUD.msg = std::format("Success: {:g}kg drained.", drainInfo.second);
 						break;
 
-					case UACS::API::DRIN_NOT_IN_RNG:
-						cargoHUD.msg = "Error: No resource cargo grappled or in range.";;
+					case UACS::DRIN_NOT_IN_RNG:
+						cargoHUD.msg = "Error: No resource vessel grappled or in range.";;
 						break;
 
-					case UACS::API::DRIN_FAIL:
+					case UACS::DRIN_FAIL:
 						cargoHUD.msg = "Error: The drainage failed.";
 						break;
 					}
@@ -516,17 +532,17 @@ namespace UACS
 					return 1;
 				}
 				case OAPI_KEY_D:
-					switch (vslAPI.DeleteCargo())
+					switch (mdlAPI.DeleteCargo())
 					{
-					case UACS::API::RLES_SUCCED:
+					case UACS::RLES_SUCCED:
 						cargoHUD.msg = "Success: Cargo deleted.";
 						break;
 
-					case UACS::API::RLES_SLT_EMPTY:
+					case UACS::RLES_SLT_EMPTY:
 						cargoHUD.msg = "Error: Slot empty.";
 						break;
 
-					case UACS::API::RLES_FAIL:
+					case UACS::RLES_FAIL:
 						cargoHUD.msg = "Error: The deletion failed.";
 						break;
 
@@ -574,50 +590,55 @@ namespace UACS
 
 			if (hudMode == HUD_OP)
 			{
-				buffer = std::format("Selected available cargo: {}", vslAPI.GetAvailCargoName(cargoHUD.idx));
+				buffer = std::format("Selected available cargo: {}", mdlAPI.GetAvailCargoName(cargoHUD.idx));
 				skp->Text(x, y, buffer.c_str(), buffer.size());
 
 				if (cargoHUD.timer < 5) { y += largeSpace; skp->Text(x, y, cargoHUD.msg.c_str(), cargoHUD.msg.size()); }
 
-				if (const auto& info = vslCargoInfo.slots.front().cargoInfo; info)
+				if (const auto& info = vslCargoInfo.slots.front().cargoInfo)
 				{
+					const auto& cargoInfo = *info;
+
 					y += largeSpace;
 					skp->Text(x, y, "Grappled cargo information", 26);
 					y += largeSpace;
 
-					buffer = std::format("Name: {}", oapiGetVesselInterface((*info).handle)->GetName());
+					buffer = std::format("Name: {}", oapiGetVesselInterface(cargoInfo.handle)->GetName());
 					skp->Text(x, y, buffer.c_str(), buffer.size());
 
 					y += space;
 
-					buffer = std::format("Mass: {:g}kg", oapiGetMass((*info).handle));
+					buffer = std::format("Mass: {:g}kg", oapiGetMass(cargoInfo.handle));
 					skp->Text(x, y, buffer.c_str(), buffer.size());
 
 					y += space;
 
-					switch ((*info).type)
+					switch (cargoInfo.type)
 					{
-					case API::STATIC:
+					case UACS::STATIC:
 						skp->Text(x, y, "Type: Static", 12);
 						break;
 
-					case API::UNPACKABLE:
-						if ((*info).unpackOnly) skp->Text(x, y, "Type: Unpackable only", 21);
+					case UACS::UNPACKABLE:
+						if (cargoInfo.unpackOnly) skp->Text(x, y, "Type: Unpackable only", 21);
 						else skp->Text(x, y, "Type: Unpackable", 16);
 
 						y += space;
 
-						buffer = std::format("Breathable: {}", (*info).breathable ? "Yes" : "No");
+						buffer = std::format("Breathable: {}", cargoInfo.breathable ? "Yes" : "No");
 						skp->Text(x, y, buffer.c_str(), buffer.size());
 
 						break;
 					}
 
-					if ((*info).resource)
+					if (cargoInfo.resource)
 					{
 						y += space;
 
-						buffer = std::format("Resource: {}", *(*info).resource);
+						buffer = *cargoInfo.resource;
+						buffer[0] = std::toupper(buffer[0]);
+
+						buffer = std::format("Resource: {}", buffer);
 						skp->Text(x, y, buffer.c_str(), buffer.size());
 					}
 				}
@@ -626,41 +647,43 @@ namespace UACS
 				y = startY;
 				skp->SetTextAlign(oapi::Sketchpad::RIGHT);
 
-				buffer = std::format("Selected available astronaut: {}", vslAPI.GetAvailAstrName(astrHUD.idx));
+				buffer = std::format("Selected available astronaut: {}", mdlAPI.GetAvailAstrName(astrHUD.idx));
 				skp->Text(x, y, buffer.c_str(), buffer.size());
 
 				if (astrHUD.timer < 5) { y += largeSpace; skp->Text(x, y, astrHUD.msg.c_str(), astrHUD.msg.size()); }
 
-				if (auto info = vslAstrInfo.stations.front().astrInfo; info)
+				if (const auto& info = vslAstrInfo.stations.front().astrInfo)
 				{
+					const auto& astrInfo = *info;
+
 					y += largeSpace;
 					skp->Text(x, y, "Onboard astronaut information", 29);
 					y += largeSpace;
 
-					buffer = std::format("Name: {}", (*info).name);
+					buffer = std::format("Name: {}", astrInfo.name);
 					skp->Text(x, y, buffer.c_str(), buffer.size());
 					y += space;
 
-					buffer = (*info).role;
+					buffer = astrInfo.role;
 					buffer[0] = std::toupper(buffer[0]);
 
 					buffer = std::format("Role: {}", buffer);
 					skp->Text(x, y, buffer.c_str(), buffer.size());
 					y += space;
 
-					buffer = std::format("Mass: {:g}kg", (*info).mass);
+					buffer = std::format("Mass: {:g}kg", astrInfo.mass);
 					skp->Text(x, y, buffer.c_str(), buffer.size());
 					y += largeSpace;
 
-					buffer = std::format("Fuel: {:g}%", (*info).fuelLvl * 100);
+					buffer = std::format("Fuel: {:g}%", astrInfo.fuelLvl * 100);
 					skp->Text(x, y, buffer.c_str(), buffer.size());
 					y += space;
 
-					buffer = std::format("Oxygen: {:g}%", (*info).oxyLvl * 100);
+					buffer = std::format("Oxygen: {:g}%", astrInfo.oxyLvl * 100);
 					skp->Text(x, y, buffer.c_str(), buffer.size());
 					y += space;
 
-					buffer = std::format("Alive: {}", (*info).alive ? "Yes" : "No");
+					buffer = std::format("Alive: {}", astrInfo.alive ? "Yes" : "No");
 					skp->Text(x, y, buffer.c_str(), buffer.size());
 				}
 			}

@@ -1,6 +1,6 @@
 #pragma once
 #include "..\..\API\Astronaut.h"
-#include "..\..\API\Vessel.h"
+#include "..\..\API\Module.h"
 #include <forward_list>
 #include <map>
 
@@ -8,7 +8,7 @@ namespace UACS
 {
 	namespace Vessel
 	{
-		class Astronaut : public API::Astronaut
+		class Astronaut : public UACS::Astronaut
 		{
 		public:
 			Astronaut(OBJHANDLE hVessel, int fModel);
@@ -21,8 +21,8 @@ namespace UACS
 
 			void clbkPostCreation() override;
 
-			void clbkSetAstrInfo(const API::AstrInfo& astrInfo) override;
-			const API::AstrInfo* clbkGetAstrInfo() override;
+			bool clbkSetAstrInfo(const UACS::AstrInfo& astrInfo) override;
+			const UACS::AstrInfo* clbkGetAstrInfo() override;
 
 			int clbkConsumeBufferedKey(DWORD key, bool down, char* kstate) override;
 			int clbkConsumeDirectKey(char* kstate) override;
@@ -36,7 +36,8 @@ namespace UACS
 			inline static double searchRange{ 60e3 };
 			static void LoadConfig();
 
-			API::AstrInfo astrInfo;
+			UACS::AstrInfo astrInfo;
+			VECTOR3 suitHoldDir, bodyHoldDir;
 			double suitMass;
 
 			UINT suitMesh, bodyMesh;
@@ -48,8 +49,8 @@ namespace UACS
 			bool suitOn{ true };
 			double consumptionRate{ 1 };
 
-			API::Vessel vslAPI;
-			API::VslCargoInfo vslCargoInfo;
+			UACS::Module mdlAPI;
+			UACS::VslCargoInfo vslCargoInfo;
 			SpotLight* spotLight1{};
 			SpotLight* spotLight2{};
 
@@ -76,7 +77,8 @@ namespace UACS
 
 				struct VesselInfo
 				{
-					const API::VslAstrInfo* info;
+					const UACS::VslAstrInfo* info;
+					std::optional<std::string> resources{};
 					size_t arlckIdx{};
 					size_t statIdx{};
 				} vslInfo;
@@ -152,8 +154,8 @@ namespace UACS
 			void DrawShort2HUD(int x, int y, oapi::Sketchpad* skp);
 
 			void DrawVslInfo(int x, int& y, oapi::Sketchpad* skp, VECTOR3 relPos);
-			void DrawAstrInfo(int x, int& y, oapi::Sketchpad* skp, const API::AstrInfo& astrInfo);
-			void DrawCargoInfo(int x, int& y, oapi::Sketchpad* skp, const API::CargoInfo& cargoInfo, bool drawBreathable, bool selectedName = false);
+			void DrawAstrInfo(int x, int& y, oapi::Sketchpad* skp, const UACS::AstrInfo& astrInfo);
+			void DrawCargoInfo(int x, int& y, oapi::Sketchpad* skp, const UACS::CargoInfo& cargoInfo, bool drawBreathable, bool selectedName = false);
 
 			void SetVslMap();
 			void SetAstrMap();
