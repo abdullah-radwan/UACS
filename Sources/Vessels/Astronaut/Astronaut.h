@@ -137,7 +137,7 @@ namespace UACS
 
 			void SetSurfaceRef();
 			void SetGroundMovement(double simdt);
-			void SetLngLatHdg(double distance, VESSELSTATUS2& status);
+			void SetLngLatHdg(double distance, double hdgOffset, VESSELSTATUS2& status);
 
 			void SetDefaultValues();
 			void SetValue(ValueInfo& valueInfo, bool setMax, bool setMin, bool setSlow);

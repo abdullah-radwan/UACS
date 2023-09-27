@@ -42,9 +42,9 @@ namespace UACS
 
 			virtual UACS::IngressResult AddAstronaut(size_t, std::optional<size_t>, std::optional<UACS::AstrInfo>);
 
-			virtual UACS::TransferResult TransferAstronaut(size_t, size_t, std::optional<size_t>);
+			virtual UACS::TransferResult TransferAstronaut(std::optional<size_t>, std::optional<size_t>, std::optional<size_t>);
 
-			virtual UACS::EgressResult EgressAstronaut(size_t, size_t);
+			virtual UACS::EgressResult EgressAstronaut(std::optional<size_t>, std::optional<size_t>);
 
 			virtual size_t GetScnCargoCount();
 
@@ -95,11 +95,15 @@ namespace UACS
 
 			template<typename T>
 			bool SetGroundPos(const VESSELSTATUS2& vslStatus, VECTOR3& initPos, UACS::GroundInfo gndInfo, std::span<T*> objSpan, const T* pOrgObj = nullptr);
-			void SetGroundDir(VECTOR3& dir);
+			std::pair<double, double> Local2LngLat(double bodySize, double lng, double lat, double hdg, VECTOR3 pos);
+
+			size_t GetOccupiedStation();
+			size_t GetTransferAirlock();
+			size_t GetEgressAirlock();
 
 			UACS::CargoInfo SetCargoInfo(UACS::Cargo* pCargo);
-			UACS::SlotInfo& GetEmptySlot(bool mustBeOpen);
-			UACS::SlotInfo& GetOccupiedSlot(bool mustBeOpen);
+			size_t GetEmptySlot(bool mustBeOpen);
+			size_t GetOccupiedSlot(bool mustBeOpen);
 		};
 	}
 }

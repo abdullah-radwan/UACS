@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Pre-release 4 - 2023-09-27
+### Added
+- Astronaut name and role on the astronaut HUD.
+- PDB files for UACS DLL modules.
+### Changed
+- Station and airlock index in TransferAstronaut and EgressAstronaut method is now optional.
+- Vessels can now accept/reject astronaut entry (ingress or transfer).
+### Fixed
+- Ground release logic. It was completely rewritten.
+- GetTotalCargoMass causing CTD.
+
 ## Pre-release 3 - 2023-08-29
 ### Added
 - Lamp cargo.

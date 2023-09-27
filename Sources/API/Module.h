@@ -95,10 +95,10 @@ namespace UACS
 		TRNS_STN_EMPTY,
 		TRNS_ARLCK_CLSD,
 
-		/// The passed airlock has no docking port.
+		/// The passed airlock (or all airlocks if airlockIdx is nullopt) has no docking port.
 		TRNS_DOCK_UNDEF,
 
-		/// The passed airlock docking port is empty.
+		/// The passed airlock (or all airlocks if airlockIdx is nullopt) docking port is empty.
 		TRNS_DOCK_EMPTY,
 
 		/// The target vessel has no airlocks associated with the docking port.
@@ -113,6 +113,9 @@ namespace UACS
 		/// The passed target station (or all target stations if tgtStationIdx is nullopt) is occupied.
 		TRNS_TGT_STN_OCCP,
 
+		/// The passed target vessel rejected the astronaut transfer.
+		TRNS_VSL_REJC,
+
 		TRNS_FAIL
 	};
 
@@ -122,7 +125,7 @@ namespace UACS
 		EGRS_STN_EMPTY,
 		EGRS_ARLCK_CLSD,
 
-		/// A vessel is docked to the passed airlock docking port.
+		/// A vessel is docked to the passed airlock (or all airlocks if airlockIdx is nullopt) docking port.
 		EGRS_ARLCK_DCKD,
 
 		/// No empty position to egress the astronaut on the ground.
@@ -345,7 +348,7 @@ namespace UACS
 		 * @param tgtStationIdx The target vessel station index to transfer the astronaut into it. If nullopt is passed, the first empty station is used.
 		 * @return The transfer result.
 		*/
-		TransferResult TransferAstronaut(size_t stationIdx, size_t airlockIdx, std::optional<size_t> tgtStationIdx = {});
+		TransferResult TransferAstronaut(std::optional<size_t> stationIdx = {}, std::optional<size_t> airlockIdx = {}, std::optional<size_t> tgtStationIdx = {});
 
 		/**
 		 * @brief Egresses the astronaut in the passed station via the passed airlock.
@@ -353,7 +356,7 @@ namespace UACS
 		 * @param airlockIdx The airlock index.
 		 * @return The egress result.
 		*/
-		EgressResult EgressAstronaut(size_t stationIdx, size_t airlockIdx);
+		EgressResult EgressAstronaut(std::optional<size_t> stationIdx = {}, std::optional<size_t> airlockIdx = {});
 
 		// Cargo methods.
 

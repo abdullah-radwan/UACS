@@ -57,10 +57,10 @@ namespace UACS
 	IngressResult Module::AddAstronaut(size_t availIdx, std::optional<size_t> stationIdx, std::optional<AstrInfo> astrInfo)
 	{ return pCoreModule ? pCoreModule->AddAstronaut(availIdx, stationIdx, astrInfo) : INGRS_FAIL; }
 
-	TransferResult Module::TransferAstronaut(size_t stationIdx, size_t airlockIdx, std::optional<size_t> tgtStationIdx)
+	TransferResult Module::TransferAstronaut(std::optional<size_t> stationIdx, std::optional<size_t> airlockIdx, std::optional<size_t> tgtStationIdx)
 	{ return pCoreModule ? pCoreModule->TransferAstronaut(stationIdx, airlockIdx, tgtStationIdx) : TRNS_FAIL; }
 
-	EgressResult Module::EgressAstronaut(size_t stationIdx, size_t airlockIdx)
+	EgressResult Module::EgressAstronaut(std::optional<size_t> stationIdx, std::optional<size_t> airlockIdx)
 	{ return pCoreModule ? pCoreModule->EgressAstronaut(stationIdx, airlockIdx) : EGRS_FAIL; }
 
 	size_t Module::GetScnCargoCount() { return pCoreModule ? pCoreModule->GetScnCargoCount() : 0; }

@@ -44,7 +44,7 @@ namespace UACS
 
 				const double distance = length(vesselPos);
 
-				if (distance > nearDistance + oapiGetSize(hVessel) || !GetEmptyStationIndex(vesselInfo->stations)) continue;
+				if (distance > nearDistance + oapiGetSize(hVessel) || vesselInfo->stations.at(GetEmptyStationIndex(vesselInfo->stations)).astrInfo) continue;
 
 				found = true;
 
@@ -55,7 +55,7 @@ namespace UACS
 
 			if (!found) return {};
 
-			nearAirlock.stationIdx = *GetEmptyStationIndex(nearVslInfo->stations);
+			nearAirlock.stationIdx = GetEmptyStationIndex(nearVslInfo->stations);
 
 			nearDistance = range;
 
@@ -190,14 +190,9 @@ namespace UACS
 
 				else if (!airlocks.at(*airlockIdx).open) return UACS::INGRS_ARLCK_CLSD;
 
-				if (!stationIdx)
-				{
-					stationIdx = GetEmptyStationIndex(stations);
+				if (!stationIdx) stationIdx = GetEmptyStationIndex(stations);
 
-					if (!stationIdx) return UACS::INGRS_STN_OCCP;
-				}
-
-				else if (stations.at(*stationIdx).astrInfo) return UACS::INGRS_STN_OCCP;
+				if (stations.at(*stationIdx).astrInfo) return UACS::INGRS_STN_OCCP;
 
 				const UACS::AirlockInfo& airlockInfo = airlocks.at(*airlockIdx);
 
@@ -215,9 +210,9 @@ namespace UACS
 
 				if (!nearAirlock) return UACS::INGRS_NOT_IN_RNG;
 
-				hVessel = (*nearAirlock).hVessel;
+				hVessel = nearAirlock->hVessel;
 
-				stationIdx = (*nearAirlock).stationIdx;
+				stationIdx = nearAirlock->stationIdx;
 			}
 
 			auto& astrInfo = vslAstrMap.at(hVessel)->stations.at(*stationIdx).astrInfo = *pAstr->clbkGetAstrInfo();

@@ -24,11 +24,11 @@ namespace UACS
 
 	inline void SetSpawnName(std::string& name)
 	{
-		for (size_t index{}; ++index;)
+		for (size_t idx{}; ++idx;)
 		{
 			// Add the index to the string. c_str() is used to avoid a bug
-			std::string spawnName = name.c_str() + std::to_string(index);
-			// If the spawn name doesn't exists
+			std::string spawnName = name.c_str() + std::to_string(idx);
+
 			if (!oapiGetVesselByName(spawnName.data())) { name = spawnName; return; }
 		}
 	}
@@ -112,16 +112,16 @@ namespace UACS
 		const double frontLat = (frontPos.z * cos(status.surf_hdg)) / bodySize;
 		const double frontElev = oapiSurfaceElevation(status.rbody, status.surf_lng + frontLng, status.surf_lat + frontLat);
 
-		const double rightLng = ((*rightPos).z * sin(status.surf_hdg) + (*rightPos).x * cos(status.surf_hdg)) / bodySize;
-		const double rightLat = ((*rightPos).z * cos(status.surf_hdg) - (*rightPos).x * sin(status.surf_hdg)) / bodySize;
+		const double rightLng = (rightPos->z * sin(status.surf_hdg) + rightPos->x * cos(status.surf_hdg)) / bodySize;
+		const double rightLat = (rightPos->z * cos(status.surf_hdg) - rightPos->x * sin(status.surf_hdg)) / bodySize;
 		const double rightElev = oapiSurfaceElevation(status.rbody, status.surf_lng + rightLng, status.surf_lat + rightLat);
 
-		const double leftLng = ((*leftPos).z * sin(status.surf_hdg) + (*leftPos).x * cos(status.surf_hdg)) / bodySize;
-		const double leftLat = ((*leftPos).z * cos(status.surf_hdg) - (*leftPos).x * sin(status.surf_hdg)) / bodySize;
+		const double leftLng = (leftPos->z * sin(status.surf_hdg) + leftPos->x * cos(status.surf_hdg)) / bodySize;
+		const double leftLat = (leftPos->z * cos(status.surf_hdg) - leftPos->x * sin(status.surf_hdg)) / bodySize;
 		const double leftElev = oapiSurfaceElevation(status.rbody, status.surf_lng + leftLng, status.surf_lat + leftLat);
 
-		const double pitchAngle = atan2(((rightElev + leftElev) * 0.5) - frontElev, (*rightPos).z - frontPos.z);
-		const double rollAngle = -atan2(leftElev - rightElev, (*leftPos).x - (*rightPos).x);
+		const double pitchAngle = atan2(((rightElev + leftElev) * 0.5) - frontElev, rightPos->z - frontPos.z);
+		const double rollAngle = -atan2(leftElev - rightElev, leftPos->x - rightPos->x);
 
 		const MATRIX3 rot1 = RotationMatrix({ 0, PI05 - status.surf_lng, 0 });
 		const MATRIX3 rot2 = RotationMatrix({ -status.surf_lat, 0, 0 });

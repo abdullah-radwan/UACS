@@ -324,7 +324,7 @@ namespace UACS
 
 				case OAPI_KEY_E:
 				{
-					switch (mdlAPI.EgressAstronaut(0, 0))
+					switch (mdlAPI.EgressAstronaut())
 					{
 					case UACS::EGRS_SUCCED:
 						astrHUD.msg = "Success: Astronaut egressed.";
@@ -355,10 +355,10 @@ namespace UACS
 				}
 
 				case OAPI_KEY_T:
-					switch (mdlAPI.TransferAstronaut(0, 0))
+					switch (mdlAPI.TransferAstronaut())
 					{
 					case UACS::TRNS_SUCCED:
-						astrHUD.msg = "Success: Astronaut trasnfered.";
+						astrHUD.msg = "Success: Astronaut transfered.";
 						break;
 					case UACS::TRNS_STN_EMPTY:
 						astrHUD.msg = "Error: No astronaut onboard.";

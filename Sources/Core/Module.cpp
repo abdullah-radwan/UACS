@@ -84,7 +84,7 @@ namespace UACS
 				if (!hCargo) continue;
 
 				slotInfo.cargoInfo = GetCargoInfoByHandle(hCargo);
-				SetAttachPos(true, (*slotInfo.cargoInfo).unpacked, slotInfo);
+				SetAttachPos(true, slotInfo.cargoInfo->unpacked, slotInfo);
 			}
 		}
 
@@ -145,7 +145,7 @@ namespace UACS
 		{
 			double totalMass{};
 
-			for (const auto& station : pVslAstrInfo->stations) if (station.astrInfo) totalMass += (*station.astrInfo).mass;
+			for (const auto& station : pVslAstrInfo->stations) if (station.astrInfo) totalMass += station.astrInfo->mass;
 
 			return totalMass;
 		}
@@ -154,7 +154,7 @@ namespace UACS
 		{
 			if (!stationIdx) stationIdx = GetEmptyStationIndex(pVslAstrInfo->stations);
 
-			if (!stationIdx || pVslAstrInfo->stations.at(*stationIdx).astrInfo) return UACS::INGRS_STN_OCCP;
+			if (pVslAstrInfo->stations.at(*stationIdx).astrInfo) return UACS::INGRS_STN_OCCP;
 
 			const std::string_view astrName = availAstrVector.at(availIdx);
 
@@ -180,20 +180,24 @@ namespace UACS
 				oapiDeleteVessel(hAstr);
 			}
 
-			(*astrInfo).className = className;
+			astrInfo->className = className;
 
 			pVslAstrInfo->stations.at(*stationIdx).astrInfo = astrInfo;
 
 			return UACS::INGRS_SUCCED;
 		}
 
-		UACS::TransferResult Module::TransferAstronaut(size_t stationIdx, size_t airlockIdx, std::optional<size_t> tgtStationIdx)
+		UACS::TransferResult Module::TransferAstronaut(std::optional<size_t> stationIdx, std::optional<size_t> airlockIdx, std::optional<size_t> tgtStationIdx)
 		{
-			auto& astrInfo = pVslAstrInfo->stations.at(stationIdx).astrInfo;
+			if (!stationIdx) stationIdx = GetOccupiedStation();
+
+			std::optional<UACS::AstrInfo>& astrInfo = pVslAstrInfo->stations.at(*stationIdx).astrInfo;
 
 			if (!astrInfo) return UACS::TRNS_STN_EMPTY;
 
-			const auto& airlockInfo = pVslAstrInfo->airlocks.at(airlockIdx);
+			if (!airlockIdx) airlockIdx = GetTransferAirlock();
+
+			const UACS::AirlockInfo& airlockInfo = pVslAstrInfo->airlocks.at(*airlockIdx);
 
 			if (!airlockInfo.open) return UACS::TRNS_ARLCK_CLSD;
 
@@ -213,7 +217,7 @@ namespace UACS
 
 			if (targetInfo->stations.empty()) return UACS::TRNS_TGT_STN_UNDEF;
 
-			const VESSEL* pTarget = oapiGetVesselInterface(hTarget);
+			VESSEL* pTarget = oapiGetVesselInterface(hTarget);
 
 			DOCKHANDLE hTargetDock{};
 
@@ -230,16 +234,20 @@ namespace UACS
 
 				if (!targetAirlockInfo.open) return UACS::TRNS_TGT_ARLCK_CLSD;
 
-				if (!tgtStationIdx)
+				if (!tgtStationIdx) tgtStationIdx = GetEmptyStationIndex(targetInfo->stations);
+
+				if (targetInfo->stations.at(*tgtStationIdx).astrInfo) return UACS::TRNS_TGT_STN_OCCP;
+
+				targetInfo->stations.at(*tgtStationIdx).astrInfo = astrInfo;
+
+				if (pTarget->Version() >= 3)
 				{
-					tgtStationIdx = GetEmptyStationIndex(targetInfo->stations);
-
-					if (!tgtStationIdx) return UACS::TRNS_TGT_STN_OCCP;
+					if (!static_cast<VESSEL3*>(pTarget)->clbkGeneric(UACS::MSG, UACS::ASTR_INGRS, &(*tgtStationIdx)))
+					{
+						targetInfo->stations.at(*tgtStationIdx).astrInfo = {};
+						return UACS::TRNS_VSL_REJC;
+					}
 				}
-
-				else if (targetInfo->stations.at(tgtStationIdx.value()).astrInfo) return UACS::TRNS_TGT_STN_OCCP;
-
-				targetInfo->stations.at(tgtStationIdx.value()).astrInfo = astrInfo;
 
 				astrInfo = {};
 
@@ -249,24 +257,30 @@ namespace UACS
 			return UACS::TRNS_TGT_ARLCK_UNDEF;
 		}
 
-		UACS::EgressResult Module::EgressAstronaut(size_t stationIdx, size_t airlockIdx)
+		UACS::EgressResult Module::EgressAstronaut(std::optional<size_t> stationIdx, std::optional<size_t> airlockIdx)
 		{
-			auto& astrInfoOpt = pVslAstrInfo->stations.at(stationIdx).astrInfo;
+			if (!stationIdx) stationIdx = GetOccupiedStation();
+
+			std::optional<UACS::AstrInfo>& astrInfoOpt = pVslAstrInfo->stations.at(*stationIdx).astrInfo;
+
 			if (!astrInfoOpt) return UACS::EGRS_STN_EMPTY;
 
-			auto& astrInfo = *astrInfoOpt;
+			if (!airlockIdx) airlockIdx = GetEgressAirlock();
 
-			const auto& airlockInfo = pVslAstrInfo->airlocks.at(airlockIdx);
+			const UACS::AirlockInfo& airlockInfo = pVslAstrInfo->airlocks.at(*airlockIdx);
 
 			if (!airlockInfo.open) return UACS::EGRS_ARLCK_CLSD;
 
 			if (airlockInfo.hDock && pVessel->GetDockStatus(airlockInfo.hDock)) return UACS::EGRS_ARLCK_DCKD;
+
+			UACS::AstrInfo& astrInfo = *astrInfoOpt;
 
 			VESSELSTATUS2 status = GetVesselStatus(pVessel);
 
 			if (status.status)
 			{
 				VECTOR3 egressPos = airlockInfo.gndInfo.pos ? *airlockInfo.gndInfo.pos : airlockInfo.pos;
+				egressPos.y = 0;
 				if (!SetGroundPos<UACS::Astronaut>(status, egressPos, airlockInfo.gndInfo, astrVector)) return UACS::EGRS_NO_EMPTY_POS;
 
 				SetGroundRotation(status, astrInfo.height, egressPos.x, egressPos.z);
@@ -288,7 +302,7 @@ namespace UACS
 				// Global vector to Euler angle conversion
 				double alpha = atan2(zForward.y, zForward.z);
 				double beta = -asin(zForward.x);
-				double gamma = atan2(xRight.x, yUp.x);				
+				double gamma = atan2(xRight.x, yUp.x);
 
 				status.arot = { alpha, beta, PI05 - gamma };
 
@@ -377,14 +391,16 @@ namespace UACS
 		{
 			double totalMass{};
 
-			for (const auto& slotInfo : pVslCargoInfo->slots) totalMass += oapiGetMass((*slotInfo.cargoInfo).handle);
+			for (const auto& slotInfo : pVslCargoInfo->slots) if (slotInfo.cargoInfo) totalMass += oapiGetMass(slotInfo.cargoInfo->handle);
 
 			return totalMass;
 		}
 
 		UACS::GrappleResult Module::AddCargo(size_t availIdx, std::optional<size_t> slotIdx)
 		{
-			UACS::SlotInfo& slotInfo = slotIdx ? pVslCargoInfo->slots.at(*slotIdx) : GetEmptySlot(true);
+			if (!slotIdx) slotIdx = GetEmptySlot(true);
+
+			UACS::SlotInfo& slotInfo = pVslCargoInfo->slots.at(*slotIdx);
 
 			if (!slotInfo.open) return UACS::GRPL_SLT_CLSD;
 
@@ -439,7 +455,9 @@ namespace UACS
 
 		UACS::ReleaseResult Module::DeleteCargo(std::optional<size_t> slotIdx)
 		{
-			UACS::SlotInfo& slotInfo = slotIdx ? pVslCargoInfo->slots.at(*slotIdx) : GetOccupiedSlot(false);
+			if (!slotIdx) slotIdx = GetOccupiedSlot(false);
+
+			UACS::SlotInfo& slotInfo = pVslCargoInfo->slots.at(*slotIdx);
 
 			if (!slotInfo.cargoInfo) return UACS::RLES_SLT_EMPTY;
 
@@ -455,7 +473,9 @@ namespace UACS
 
 		UACS::GrappleResult Module::GrappleCargo(OBJHANDLE hCargo, std::optional<size_t> slotIdx)
 		{
-			UACS::SlotInfo& slotInfo = slotIdx ? pVslCargoInfo->slots.at(*slotIdx) : GetEmptySlot(true);
+			if (!slotIdx) slotIdx = GetEmptySlot(true);
+
+			UACS::SlotInfo& slotInfo = pVslCargoInfo->slots.at(*slotIdx);
 
 			if (!slotInfo.open) return UACS::GRPL_SLT_CLSD;
 
@@ -553,13 +573,15 @@ namespace UACS
 
 		UACS::ReleaseResult Module::ReleaseCargo(std::optional<size_t> slotIdx)
 		{
-			UACS::SlotInfo& slotInfo = slotIdx ? pVslCargoInfo->slots.at(*slotIdx) : GetOccupiedSlot(true);
+			if (!slotIdx) slotIdx = GetOccupiedSlot(true);
+
+			UACS::SlotInfo& slotInfo = pVslCargoInfo->slots.at(*slotIdx);
 
 			if (!slotInfo.open) return UACS::RLES_SLT_CLSD;
 
 			if (!slotInfo.cargoInfo) return UACS::RLES_SLT_EMPTY;
 
-			auto pCargo = static_cast<UACS::Cargo*>(oapiGetVesselInterface((*slotInfo.cargoInfo).handle));
+			auto pCargo = static_cast<UACS::Cargo*>(oapiGetVesselInterface(slotInfo.cargoInfo->handle));
 
 			if (pVessel->GetFlightStatus())
 			{
@@ -578,13 +600,8 @@ namespace UACS
 
 				if (!pVessel->DetachChild(slotInfo.hAttach)) return UACS::RLES_FAIL;
 
-				if (pVslCargoInfo->astrMode)
-				{
-					status.surf_hdg = GetVesselStatus(pCargo).surf_hdg + PI;
-
-					if (status.surf_hdg > PI2) status.surf_hdg -= PI2;
-				}
-
+				if (pVslCargoInfo->astrMode) status.surf_hdg = fmod(GetVesselStatus(pCargo).surf_hdg + PI, PI2);
+				
 				auto cargoInfo = pCargo->clbkGetCargoInfo();
 
 				SetGroundRotation(status, cargoInfo->frontPos, cargoInfo->rightPos, cargoInfo->leftPos, relPos.x, relPos.z);
@@ -593,7 +610,7 @@ namespace UACS
 			}
 			else if (!pVessel->DetachChild(slotInfo.hAttach, slotInfo.relVel)) return UACS::RLES_FAIL;
 
-			SetAttachPos(false, (*slotInfo.cargoInfo).unpacked, slotInfo);
+			SetAttachPos(false, slotInfo.cargoInfo->unpacked, slotInfo);
 
 			pCargo->clbkCargoReleased();
 			slotInfo.cargoInfo = {};
@@ -698,7 +715,7 @@ namespace UACS
 				if (!slotInfo.cargoInfo) return { UACS::DRIN_SLT_EMPTY, 0 };
 
 				passCheck = true;
-				auto drainInfo = DrainScenarioResource(resource, mass, (*slotInfo.cargoInfo).handle);
+				auto drainInfo = DrainScenarioResource(resource, mass, slotInfo.cargoInfo->handle);
 				passCheck = false;
 
 				return drainInfo;
@@ -709,7 +726,7 @@ namespace UACS
 				if (!slotInfo.cargoInfo) continue;
 
 				passCheck = true;
-				auto drainInfo = DrainScenarioResource(resource, mass, (*slotInfo.cargoInfo).handle);
+				auto drainInfo = DrainScenarioResource(resource, mass, slotInfo.cargoInfo->handle);
 				passCheck = false;
 
 				return drainInfo;
@@ -836,6 +853,8 @@ namespace UACS
 		template<typename T>
 		bool Module::SetGroundPos(const VESSELSTATUS2& vslStatus, VECTOR3& initPos, UACS::GroundInfo gndInfo, std::span<T*> objSpan, const T* pOrgObj)
 		{
+			VECTOR3 pos = initPos;
+
 			if (!pVslCargoInfo->astrMode)
 			{
 				if (!gndInfo.colDir || !gndInfo.rowDir)
@@ -851,14 +870,11 @@ namespace UACS
 						gndInfo.rowDir = _V((initPos.x < 0 ? -1 : 1), 0, 0);
 					}
 				}
-
-				SetGroundDir(*gndInfo.colDir); SetGroundDir(*gndInfo.rowDir);
 			}
 
 			const double bodySize = oapiGetSize(vslStatus.rbody);
 
-			pVessel->HorizonRot(initPos, initPos); initPos /= bodySize;
-			gndInfo.pos = initPos;
+			VECTOR3 finalPos = initPos;
 
 			size_t colCount{}, rowCount{};
 			double spaceMargin = 0.5 * gndInfo.colSpace;
@@ -872,8 +888,9 @@ namespace UACS
 
 				if (!objStatus.status || objStatus.rbody != vslStatus.rbody) continue;
 
-				if (DistLngLat(bodySize, objStatus.surf_lng, objStatus.surf_lat,
-					vslStatus.surf_lng + (*gndInfo.pos).x, vslStatus.surf_lat + (*gndInfo.pos).z) > spaceMargin) continue;
+				auto posCoords = Local2LngLat(bodySize, vslStatus.surf_lng, vslStatus.surf_lat, vslStatus.surf_hdg, finalPos);
+
+				if (DistLngLat(bodySize, objStatus.surf_lng, objStatus.surf_lat, posCoords.first, posCoords.second) > spaceMargin) continue;
 
 				else if (pVslCargoInfo->astrMode) return false;
 
@@ -887,30 +904,81 @@ namespace UACS
 
 					colCount = 0;
 
-					gndInfo.pos = initPos;
+					finalPos = initPos;
 
-					(*gndInfo.pos).x += gndInfo.rowSpace * rowCount * (*gndInfo.colDir).x / bodySize;
-					(*gndInfo.pos).z += gndInfo.rowSpace * rowCount * (*gndInfo.colDir).z / bodySize;
+					finalPos.x += gndInfo.rowSpace * rowCount * gndInfo.colDir->x;
+					finalPos.z += gndInfo.rowSpace * rowCount * gndInfo.colDir->z;
 				}
 
 				else
 				{
-					(*gndInfo.pos).x += gndInfo.colSpace * (*gndInfo.rowDir).x / bodySize;
-					(*gndInfo.pos).z += gndInfo.colSpace * (*gndInfo.rowDir).z / bodySize;
+					finalPos.x += gndInfo.colSpace * gndInfo.rowDir->x;
+					finalPos.z += gndInfo.colSpace * gndInfo.rowDir->z;
 				}
 
 				goto groundPosLoop;
 			}
 
-			initPos = *gndInfo.pos;
+			auto posCoords = Local2LngLat(bodySize, vslStatus.surf_lng, vslStatus.surf_lat, vslStatus.surf_hdg, finalPos);
+
+			initPos.x = posCoords.first - vslStatus.surf_lng;
+			initPos.z = posCoords.second - vslStatus.surf_lat;
 
 			return true;
 		}
 
-		void Module::SetGroundDir(VECTOR3& dir)
+		std::pair<double, double> Module::Local2LngLat(double bodySize, double lng, double lat, double hdg, VECTOR3 pos)
 		{
-			pVessel->HorizonRot(dir, dir);
-			dir /= sqrt(dir.x * dir.x + dir.z * dir.z);
+			double dist = length(pos) / bodySize;
+			double finalHdg = fmod(atan2(pos.x, pos.z) + PI2 + hdg, PI2);
+
+			double finalLat = asin(sin(lat) * cos(dist) + cos(lat) * sin(dist) * cos(finalHdg));
+			double finalLng = atan2(sin(finalHdg) * sin(dist) * cos(lat), cos(dist) - sin(lat) * sin(finalLat)) + lng;
+
+			return { finalLng, finalLat };
+		}
+
+		size_t Module::GetOccupiedStation()
+		{
+			for (size_t idx{}; idx < pVslAstrInfo->stations.size(); ++idx)			
+				if (pVslAstrInfo->stations.at(idx).astrInfo) return idx;
+			
+			return 0;
+		}
+
+		size_t Module::GetTransferAirlock()
+		{
+			for (size_t idx{}; idx < pVslAstrInfo->airlocks.size(); ++idx)
+			{
+				const auto& airlock = pVslAstrInfo->airlocks.at(idx);
+
+				if (!airlock.open || !airlock.hDock) continue;
+
+				OBJHANDLE hTarget = pVessel->GetDockStatus(airlock.hDock);
+
+				if (!hTarget) continue;
+
+				const auto& vesselPair = vslAstrMap.find(hTarget);
+
+				if (vesselPair == vslAstrMap.end()) continue;;
+
+				UACS::VslAstrInfo* targetInfo = vesselPair->second;
+
+				if (!targetInfo->airlocks.empty() && !targetInfo->stations.empty()) return idx;
+			}
+
+			return 0;
+		}
+
+		size_t Module::GetEgressAirlock()
+		{
+			for (size_t idx{}; idx < pVslAstrInfo->airlocks.size(); ++idx)
+			{
+				const auto& airlock = pVslAstrInfo->airlocks.at(idx);
+				if (airlock.open && (!airlock.hDock || !pVessel->GetDockStatus(airlock.hDock))) return idx;
+			}
+
+			return 0;
 		}
 
 		UACS::CargoInfo Module::SetCargoInfo(UACS::Cargo* pCargo)
@@ -929,28 +997,30 @@ namespace UACS
 			return cargoInfo;
 		}
 
-		UACS::SlotInfo& Module::GetEmptySlot(bool mustBeOpen)
+		size_t Module::GetEmptySlot(bool mustBeOpen)
 		{
-			for (auto& slotInfo : pVslCargoInfo->slots)
+			for (size_t idx{}; idx < pVslCargoInfo->slots.size(); ++idx)
 			{
-				if (mustBeOpen && !slotInfo.open) continue;
+				const auto& slotInfo = pVslCargoInfo->slots.at(idx);
 
-				if (!slotInfo.cargoInfo) return slotInfo;
+				if (mustBeOpen && !slotInfo.open) continue;
+				if (!slotInfo.cargoInfo) return idx;
 			}
 
-			return pVslCargoInfo->slots.front();
+			return 0;
 		}
 
-		UACS::SlotInfo& Module::GetOccupiedSlot(bool mustBeOpen)
+		size_t Module::GetOccupiedSlot(bool mustBeOpen)
 		{
-			for (auto& slotInfo : pVslCargoInfo->slots)
+			for (size_t idx{}; idx < pVslCargoInfo->slots.size(); ++idx)
 			{
-				if (mustBeOpen && !slotInfo.open) continue;
+				const auto& slotInfo = pVslCargoInfo->slots.at(idx);
 
-				if (slotInfo.cargoInfo) return slotInfo;
+				if (mustBeOpen && !slotInfo.open) continue;
+				if (slotInfo.cargoInfo) return idx;
 			}
 
-			return pVslCargoInfo->slots.front();
+			return 0;
 		}
 	}
 }

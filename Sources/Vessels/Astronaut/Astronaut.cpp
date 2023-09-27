@@ -714,6 +714,13 @@ namespace UACS
 
 			VESSEL4::clbkDrawHUD(mode, hps, skp);
 
+			buffer = astrInfo.role;
+			buffer[0] = std::toupper(buffer[0]);
+			buffer = std::format("Name: {} - Role: {}", astrInfo.name, buffer);
+
+			skp->Text(x, y, buffer.c_str(), buffer.size());
+			y += hudInfo.space;
+
 			if (suitOn)
 			{
 				const double time = GetPropellantMass(hOxy) / (consumptionRate * 3600);
@@ -722,8 +729,7 @@ namespace UACS
 				const int minutes = int(minutesRemainder);
 				const int seconds = int((minutesRemainder - minutes) * 60);
 
-				std::string buffer = std::format("Oxygen Level: {:.1f}% Duration: {:02d}:{:02d}:{:02d}", astrInfo.oxyLvl * 100, hours, minutes, seconds);
-
+				buffer = std::format("Oxygen Level: {:.1f}% - Duration: {:02d}:{:02d}:{:02d}", astrInfo.oxyLvl * 100, hours, minutes, seconds);
 				skp->Text(x, y, buffer.c_str(), buffer.size());
 
 				y += hudInfo.space;
@@ -923,17 +929,11 @@ namespace UACS
 		{
 			VESSELSTATUS2 status = GetVesselStatus(this);
 
-			if (steerAngle.value)
-			{
-				status.surf_hdg += steerAngle.value * simdt;
-
-				if (status.surf_hdg > PI2) status.surf_hdg -= PI2;
-				else if (status.surf_hdg < 0) status.surf_hdg += PI2;
-			}
+			if (steerAngle.value) status.surf_hdg = fmod(status.surf_hdg + steerAngle.value * simdt, PI2);
 
 			if (lonSpeed.value)
 			{
-				SetLngLatHdg(lonSpeed.value * simdt, status);
+				SetLngLatHdg(lonSpeed.value * simdt, 0, status);
 
 				if (enhancedMovements && lonSpeed.value > 1.55)
 				{
@@ -943,38 +943,30 @@ namespace UACS
 				else lonSpeed.maxLimit = 10;
 			}
 
-			else if (latSpeed.value)
-			{
-				status.surf_hdg += PI05;
-				if (status.surf_hdg > PI2) status.surf_hdg -= PI2;
-
-				SetLngLatHdg(latSpeed.value * simdt, status);
-
-				status.surf_hdg -= PI05;
-				if (status.surf_hdg < 0) status.surf_hdg += PI2;
-			}
+			else if (latSpeed.value) SetLngLatHdg(latSpeed.value * simdt, PI05, status);
 
 			SetGroundRotation(status, suitOn ? astrInfo.height : bodyHeight);
 
 			DefSetStateEx(&status);
 		}
 
-		void Astronaut::SetLngLatHdg(double distance, VESSELSTATUS2& status)
+		void Astronaut::SetLngLatHdg(double distance, double hdgOffset, VESSELSTATUS2& status)
 		{
 			distance /= oapiGetSize(surfInfo.ref);
 
-			double finalLat = asin(sin(status.surf_lat) * cos(distance) + cos(status.surf_lat) * sin(distance) * cos(status.surf_hdg));
-			double lngOffset = atan2(sin(status.surf_hdg) * sin(distance) * cos(status.surf_lat), cos(distance) - sin(status.surf_lat) * sin(finalLat));
+			double hdg = fmod(status.surf_hdg + hdgOffset, PI2);
+			double finalLat = asin(sin(status.surf_lat) * cos(distance) + cos(status.surf_lat) * sin(distance) * cos(hdg));
+			double lngOffset = atan2(sin(hdg) * sin(distance) * cos(status.surf_lat), cos(distance) - sin(status.surf_lat) * sin(finalLat));
 			double finalLng = status.surf_lng + lngOffset;
 
 			// Distance less than that will result in rapid heading chnages
 			if (abs(distance) > 1.6e-9)
 			{
-				double y = -sin(lngOffset) * cos(status.surf_lat);
-				double x = cos(finalLat) * sin(status.surf_lat) - sin(finalLat) * cos(status.surf_lat) * cos(lngOffset);
+				double y = sin(lngOffset) * cos(finalLat);
+				double x = cos(status.surf_lat) * sin(finalLat) - sin(status.surf_lat) * cos(finalLat) * cos(lngOffset);
 
-				if (distance > 0) status.surf_hdg = fmod(atan2(y, x) + PI + PI2, PI2);
-				else status.surf_hdg = fmod(atan2(y, x) + PI2, PI2);
+				if (distance > 0) status.surf_hdg = fmod(atan2(y, x) + PI2 - hdgOffset, PI2);
+				else status.surf_hdg = fmod(atan2(y, x) + PI - hdgOffset, PI2);
 			}
 
 			status.surf_lng = finalLng;
@@ -1093,13 +1085,13 @@ namespace UACS
 
 			if (!nearAirlock) { skp->Text(x, y, "No vessel in range", 18); goto breathLabel; }
 
-			if (hudInfo.hVessel != (*nearAirlock).hVessel)
+			if (hudInfo.hVessel != nearAirlock->hVessel)
 			{
-				hudInfo.hVessel = (*nearAirlock).hVessel;
+				hudInfo.hVessel = nearAirlock->hVessel;
 				hudInfo.vslInfo = HudInfo::VesselInfo();
 
-				hudInfo.vslInfo.arlckIdx = (*nearAirlock).airlockIdx;
-				hudInfo.vslInfo.statIdx = (*nearAirlock).stationIdx;
+				hudInfo.vslInfo.arlckIdx = nearAirlock->airlockIdx;
+				hudInfo.vslInfo.statIdx = nearAirlock->stationIdx;
 
 				hudInfo.vslInfo.info = GetVslAstrInfo(hudInfo.hVessel);
 			}
@@ -1123,12 +1115,12 @@ namespace UACS
 				y += hudInfo.largeSpace;
 			}
 
-			buffer = std::format("Airlock name: {}, {}", (*nearAirlock).airlockInfo.name, (*nearAirlock).airlockInfo.open ? "open" : "closed");
+			buffer = std::format("Airlock name: {}, {}", nearAirlock->airlockInfo.name, nearAirlock->airlockInfo.open ? "open" : "closed");
 			skp->Text(x, y, buffer.c_str(), buffer.size());
 
 			y += hudInfo.space;
 
-			DrawVslInfo(x, y, skp, (*nearAirlock).airlockInfo.pos);
+			DrawVslInfo(x, y, skp, nearAirlock->airlockInfo.pos);
 
 		breathLabel:
 			x = hudInfo.rightX;
@@ -1143,7 +1135,7 @@ namespace UACS
 
 			if (!hudInfo.hVessel) 
 			{ 
-				if (nearAirlock) hudInfo.hVessel = (*nearAirlock).hVessel; 
+				if (nearAirlock) hudInfo.hVessel = nearAirlock->hVessel;
 
 				skp->Text(x, y, "No breathable in range", 22); 
 				return;
@@ -1169,7 +1161,7 @@ namespace UACS
 			Global2Local(relPos, relPos);
 			DrawVslInfo(x, y, skp, relPos);
 
-			if (nearAirlock) hudInfo.hVessel = (*nearAirlock).hVessel;
+			if (nearAirlock) hudInfo.hVessel = nearAirlock->hVessel;
 			else hudInfo.hVessel = nullptr;
 		}
 
@@ -1199,7 +1191,7 @@ namespace UACS
 				{
 					hudInfo.vslInfo.resources = std::string();
 
-					if (!(*resources).empty())
+					if (!resources->empty())
 					{
 						for (std::string resource : *resources)
 						{
@@ -1207,8 +1199,8 @@ namespace UACS
 							*hudInfo.vslInfo.resources += resource + ", ";
 						}
 
-						(*hudInfo.vslInfo.resources).pop_back();
-						(*hudInfo.vslInfo.resources).pop_back();
+						hudInfo.vslInfo.resources->pop_back();
+						hudInfo.vslInfo.resources->pop_back();
 					}
 				}
 			}
@@ -1225,7 +1217,7 @@ namespace UACS
 			{
 				y += hudInfo.space;
 
-				if ((*hudInfo.vslInfo.resources).empty()) buffer = "Selected vessel resources: All";
+				if (hudInfo.vslInfo.resources->empty()) buffer = "Selected vessel resources: All";
 				else buffer = std::format("Selected vessel resources: {}", *hudInfo.vslInfo.resources);
 
 				skp->Text(x, y, buffer.c_str(), buffer.size());
@@ -1251,7 +1243,7 @@ namespace UACS
 
 				const auto& stationInfo = hudInfo.vslInfo.info->stations.at(hudInfo.vslInfo.statIdx);
 
-				buffer = std::format("Seleceted station name: {}, {}", stationInfo.name, stationInfo.astrInfo ? "occupied" : "empty");
+				buffer = std::format("Selected station name: {}, {}", stationInfo.name, stationInfo.astrInfo ? "occupied" : "empty");
 				skp->Text(x, y, buffer.c_str(), buffer.size());
 
 				y += hudInfo.largeSpace;
@@ -1515,32 +1507,31 @@ namespace UACS
 
 		void Astronaut::DrawVslInfo(int x, int& y, oapi::Sketchpad* skp, VECTOR3 relPos)
 		{
-			double distance = length(relPos);
+			if (GetFlightStatus()) relPos.y = 0;
 
-			buffer = std::format("Distance: {:.1f}m", distance);
+			buffer = std::format("Distance: {:.1f}m", length(relPos));
 			skp->Text(x, y, buffer.c_str(), buffer.size());
 
 			y += hudInfo.space;
 
-			double relYaw = atan2(-relPos.z, relPos.x) + PI05;
-			if (relYaw > PI) relYaw -= PI2;
+			double relYaw = atan2(relPos.x, relPos.z) * DEG;
 
 			if (GetFlightStatus())
 			{
-				buffer = std::format("Relative heading: {:.1f}", relYaw * DEG);
+				buffer = std::format("Relative heading: {:.1f}", relYaw);
 				skp->Text(x, y, buffer.c_str(), buffer.size());
 			}
 
 			else
 			{
-				buffer = std::format("Relative yaw: {:.1f}", relYaw * DEG);
+				buffer = std::format("Relative yaw: {:.1f}", relYaw);
 				skp->Text(x, y, buffer.c_str(), buffer.size());
 
 				y += hudInfo.space;
 
-				double relPitch = atan2(relPos.y, sqrt(relPos.z * relPos.z + relPos.x * relPos.x));
+				double relPitch = atan2(relPos.y, sqrt(relPos.z * relPos.z + relPos.x * relPos.x)) * DEG;
 
-				buffer = std::format("Relative pitch: {:.1f}", relPitch * DEG);
+				buffer = std::format("Relative pitch: {:.1f}", relPitch);
 				skp->Text(x, y, buffer.c_str(), buffer.size());
 			}
 		}
