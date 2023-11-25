@@ -137,6 +137,40 @@ namespace UACS
 			return (astrIt == astrVector.end()) ? false : (*astrIt)->clbkSetAstrInfo(astrInfo);
 		}
 
+		void Module::DrawAstrInfo(const AstrInfo& astrInfo, oapi::Sketchpad* skp, int x, int& y, int lineSpacing)
+		{
+			std::string buffer = std::format("Name: {}", astrInfo.name);
+			skp->Text(x, y, buffer.c_str(), buffer.size());
+
+			y += lineSpacing;
+
+			buffer = astrInfo.role;
+			buffer[0] = std::toupper(buffer[0]);
+
+			buffer = std::format("Role: {}", buffer);
+			skp->Text(x, y, buffer.c_str(), buffer.size());
+
+			y += lineSpacing;
+
+			buffer = std::format("Mass: {:g}kg", astrInfo.mass);
+			skp->Text(x, y, buffer.c_str(), buffer.size());
+
+			y += lineSpacing;
+
+			buffer = std::format("Fuel: {:g}%", astrInfo.fuelLvl * 100);
+			skp->Text(x, y, buffer.c_str(), buffer.size());
+
+			y += lineSpacing;
+
+			buffer = std::format("Oxygen: {:g}%", astrInfo.oxyLvl * 100);
+			skp->Text(x, y, buffer.c_str(), buffer.size());
+
+			y += lineSpacing;
+
+			buffer = std::format("Alive: {}", astrInfo.alive ? "Yes" : "No");
+			skp->Text(x, y, buffer.c_str(), buffer.size());
+		}
+
 		size_t Module::GetAvailAstrCount() { return availAstrVector.size(); }
 
 		std::string_view Module::GetAvailAstrName(size_t availIdx) { return availAstrVector.at(availIdx); }
@@ -381,6 +415,44 @@ namespace UACS
 			while (std::getline(ss, resource, ',')) resources.push_back(resource);
 
 			return resources;
+		}
+
+		void Module::DrawCargoInfo(UACS::CargoInfo cargoInfo, oapi::Sketchpad* skp, int x, int& y, int lineSpacing)
+		{
+			std::string buffer = std::format("Name: {}", oapiGetVesselInterface(cargoInfo.handle)->GetName());
+
+			skp->Text(x, y, buffer.c_str(), buffer.size());
+			y += lineSpacing;
+
+			buffer = std::format("Mass: {:g}kg", oapiGetMass(cargoInfo.handle));
+			skp->Text(x, y, buffer.c_str(), buffer.size());
+
+			y += lineSpacing;
+
+			switch (cargoInfo.type)
+			{
+			case UACS::STATIC:
+				skp->Text(x, y, "Type: Static", 12);
+				break;
+
+			case UACS::UNPACKABLE:
+				if (cargoInfo.unpackOnly) skp->Text(x, y, "Type: Unpackable only", 21);
+				else skp->Text(x, y, "Type: Unpackable", 16);
+
+				y += lineSpacing;
+				buffer = std::format("Breathable: {}", cargoInfo.breathable ? "Yes" : "No");
+				skp->Text(x, y, buffer.c_str(), buffer.size());
+
+				break;
+			}
+
+			if (cargoInfo.resource)
+			{
+				y += lineSpacing;
+
+				buffer = std::format("Resource: {}", *cargoInfo.resource);
+				skp->Text(x, y, buffer.c_str(), buffer.size());
+			}
 		}
 
 		size_t Module::GetAvailCargoCount() { return availCargoVector.size(); }

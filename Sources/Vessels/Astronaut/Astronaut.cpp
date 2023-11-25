@@ -1255,7 +1255,7 @@ namespace UACS
 
 				const auto& airlockInfo = hudInfo.vslInfo.info->airlocks.at(hudInfo.vslInfo.arlckIdx);
 
-				buffer = std::format("Selected airlock name: {}, {}", airlockInfo.name, airlockInfo.open ? "opened" : "closed");
+				buffer = std::format("Selected airlock name: {}, {}", airlockInfo.name, airlockInfo.open ? "open" : "closed");
 				skp->Text(x, y, buffer.c_str(), buffer.size());
 
 				y += hudInfo.space;
@@ -1328,7 +1328,7 @@ namespace UACS
 				skp->Text(x, y, "Selected astronaut information", 30);
 				y += hudInfo.largeSpace;
 
-				DrawAstrInfo(x, y, skp, *GetAstrInfoByIndex(hudInfo.vslIdx).second);
+				mdlAPI.DrawAstrInfo(*GetAstrInfoByIndex(hudInfo.vslIdx).second, skp, x, y, hudInfo.space);
 			}
 		}
 
@@ -1362,7 +1362,7 @@ namespace UACS
 					hudInfo.hVessel = hudInfo.cargoMap.begin()->second;
 				}
 
-				DrawCargoInfo(x, y, skp, mdlAPI.GetCargoInfoByIndex(hudInfo.vslIdx), true, true);
+				DrawCargoInfo(x, y, skp, mdlAPI.GetCargoInfoByIndex(hudInfo.vslIdx), true);
 
 				y += hudInfo.largeSpace;
 
@@ -1392,7 +1392,7 @@ namespace UACS
 				skp->Text(x, y, "Grappled cargo information", 26);
 				y += hudInfo.largeSpace;
 
-				DrawCargoInfo(x, y, skp, *cargoInfo, true);
+				mdlAPI.DrawCargoInfo(*cargoInfo, skp, x, y, hudInfo.space);
 			}
 		}
 
@@ -1536,43 +1536,9 @@ namespace UACS
 			}
 		}
 
-		void Astronaut::DrawAstrInfo(int x, int& y, oapi::Sketchpad* skp, const UACS::AstrInfo& astrInfo)
+		void Astronaut::DrawCargoInfo(int x, int& y, oapi::Sketchpad* skp, const UACS::CargoInfo& cargoInfo, bool extraInfo)
 		{
-			buffer = std::format("Name: {}", astrInfo.name);
-			skp->Text(x, y, buffer.c_str(), buffer.size());
-
-			y += hudInfo.space;
-
-			buffer = astrInfo.role; 
-			buffer[0] = std::toupper(buffer[0]);
-
-			buffer = std::format("Role: {}", buffer);
-			skp->Text(x, y, buffer.c_str(), buffer.size());
-
-			y += hudInfo.space;
-
-			buffer = std::format("Mass: {:g}kg", astrInfo.mass);
-			skp->Text(x, y, buffer.c_str(), buffer.size());
-
-			y += hudInfo.largeSpace;
-
-			buffer = std::format("Fuel: {:g}%", astrInfo.fuelLvl * 100);
-			skp->Text(x, y, buffer.c_str(), buffer.size());
-
-			y += hudInfo.space;
-
-			buffer = std::format("Oxygen: {:g}%", astrInfo.oxyLvl * 100);
-			skp->Text(x, y, buffer.c_str(), buffer.size());
-
-			y += hudInfo.space;
-
-			buffer = std::format("Alive: {}", astrInfo.alive ? "Yes" : "No");
-			skp->Text(x, y, buffer.c_str(), buffer.size());
-		}
-
-		void Astronaut::DrawCargoInfo(int x, int& y, oapi::Sketchpad* skp, const UACS::CargoInfo& cargoInfo, bool drawBreathable, bool selectedName)
-		{
-			if (selectedName) buffer = std::format("Selected cargo name: {}", oapiGetVesselInterface(cargoInfo.handle)->GetName());
+			if (extraInfo) buffer = std::format("Selected cargo name: {}", oapiGetVesselInterface(cargoInfo.handle)->GetName());
 			else buffer = std::format("Name: {}", oapiGetVesselInterface(cargoInfo.handle)->GetName());
 
 			skp->Text(x, y, buffer.c_str(), buffer.size());
@@ -1593,7 +1559,7 @@ namespace UACS
 				if (cargoInfo.unpackOnly) skp->Text(x, y, "Type: Unpackable only", 21);
 				else skp->Text(x, y, "Type: Unpackable", 16);
 
-				if (drawBreathable)
+				if (extraInfo)
 				{
 					y += hudInfo.space;
 					buffer = std::format("Breathable: {}", cargoInfo.breathable ? "Yes" : "No");

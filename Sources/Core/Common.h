@@ -14,7 +14,7 @@ namespace UACS
 
 		inline std::unordered_map<OBJHANDLE, UACS::VslAstrInfo*> vslAstrMap;
 
-		inline std::string_view GetUACSVersion() { return "v1.0 Pre-release 4"; }
+		inline std::string_view GetUACSVersion() { return "v1.0 Pre-release 5"; }
 
 		inline std::pair<OBJHANDLE, const UACS::AstrInfo*> GetAstrInfoByIndex(size_t astrIdx)
 		{
@@ -38,7 +38,7 @@ namespace UACS
 
 		inline size_t GetEmptyStationIndex(std::span<const UACS::StationInfo> stations)
 		{
-			for (size_t idx{}; idx < stations.size(); ++idx) if (stations[idx].astrInfo) return idx;
+			for (size_t idx{}; idx < stations.size(); ++idx) if (!stations[idx].astrInfo) return idx;
 			
 			return 0;
 		}

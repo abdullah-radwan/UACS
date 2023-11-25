@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Pre-release 5 - 2023-11-25
+### Added
+- DrawAstrInfo and DrawCargoInfo methods.
+### Fixed
+- GetEmptyStationIndex working in reverse, causing several bugs.
+
 ## Pre-release 4 - 2023-09-27
 ### Added
 - Astronaut name and role on the astronaut HUD.

@@ -310,6 +310,16 @@ namespace UACS
 		bool SetAstrInfoByHandle(OBJHANDLE hAstr, const AstrInfo& astrInfo);
 
 		/**
+		 * @brief Draws the passed astronaut name, role, mass, fuel and oxygen level, and life flag, each in a line.
+		 * @param astrInfo The astronaut information.
+		 * @param skp The HUD sketchpad.
+		 * @param x The text X coordinate.
+		 * @param y A reference to the text initial Y coordinate. After the information is drawn, it will be the Y coordinate of the last line of text.
+		 * @param lineSpacing The vertical space between each line.
+		*/
+		void DrawAstrInfo(const AstrInfo& astrInfo, oapi::Sketchpad* skp, int x, int& y, int lineSpacing);
+
+		/**
 		 * @brief Gets the available astronaut count.
 		 *
 		 * It's the count of astronauts that can be added to the scenario, which is the config file count in 'Config\Vessels\UACS\Astronauts'.
@@ -386,6 +396,16 @@ namespace UACS
 		 * @return The station resources, or nullopt is hCargo is invalid or not a cargo. The vector is empty if the station supports all resources.
 		*/
 		std::optional<std::vector<std::string>> GetStationResources(OBJHANDLE hStation);
+
+		/**
+		 * @brief Draws the passed cargo name, mass, type, breathability, and resource if applicable, each in a line.
+		 * @param cargoInfo The cargo information.
+		 * @param skp The HUD sketchpad.
+		 * @param x The text X coordinate.
+		 * @param y A reference to the text initial Y coordinate. After the information is drawn, it will be the Y coordinate of the last line of text.
+		 * @param lineSpacing The vertical space between each line.
+		*/
+		void DrawCargoInfo(CargoInfo cargoInfo, oapi::Sketchpad* skp, int x, int& y, int lineSpacing);
 
 		/**
 		 * @brief Gets the available cargo count.

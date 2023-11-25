@@ -34,6 +34,8 @@ namespace UACS
 
 			virtual bool SetAstrInfoByHandle(OBJHANDLE, const UACS::AstrInfo&);
 
+			virtual void DrawAstrInfo(const AstrInfo&, oapi::Sketchpad*, int, int&, int);
+
 			virtual size_t GetAvailAstrCount();
 
 			virtual std::string_view GetAvailAstrName(size_t);
@@ -53,6 +55,8 @@ namespace UACS
 			virtual std::optional<UACS::CargoInfo> GetCargoInfoByHandle(OBJHANDLE);
 
 			virtual std::optional<std::vector<std::string>> GetStationResources(OBJHANDLE);
+
+			virtual void DrawCargoInfo(UACS::CargoInfo, oapi::Sketchpad*, int, int&, int);
 
 			virtual size_t GetAvailCargoCount();
 

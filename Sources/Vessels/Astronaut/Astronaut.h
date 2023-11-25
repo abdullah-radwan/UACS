@@ -154,8 +154,7 @@ namespace UACS
 			void DrawShort2HUD(int x, int y, oapi::Sketchpad* skp);
 
 			void DrawVslInfo(int x, int& y, oapi::Sketchpad* skp, VECTOR3 relPos);
-			void DrawAstrInfo(int x, int& y, oapi::Sketchpad* skp, const UACS::AstrInfo& astrInfo);
-			void DrawCargoInfo(int x, int& y, oapi::Sketchpad* skp, const UACS::CargoInfo& cargoInfo, bool drawBreathable, bool selectedName = false);
+			void DrawCargoInfo(int x, int& y, oapi::Sketchpad* skp, const UACS::CargoInfo& cargoInfo, bool extraInfo);
 
 			void SetVslMap();
 			void SetAstrMap();

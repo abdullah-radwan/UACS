@@ -47,6 +47,9 @@ namespace UACS
 	bool Module::SetAstrInfoByHandle(OBJHANDLE hAstr, const AstrInfo& astrInfo)
 	{ return pCoreModule ? pCoreModule->SetAstrInfoByHandle(hAstr, astrInfo) : false; }
 
+	void Module::DrawAstrInfo(const AstrInfo& astrInfo, oapi::Sketchpad* skp, int x, int& y, int lineSpacing)
+	{ if (pCoreModule) pCoreModule->DrawAstrInfo(astrInfo, skp, x, y, lineSpacing); }
+
 	size_t Module::GetAvailAstrCount() { return pCoreModule ? pCoreModule->GetAvailAstrCount() : 0; }
 
 	std::string_view Module::GetAvailAstrName(size_t availIdx)
@@ -73,6 +76,9 @@ namespace UACS
 
 	std::optional<std::vector<std::string>> Module::GetStationResources(OBJHANDLE hStation)
 	{ return pCoreModule ? pCoreModule->GetStationResources(hStation) : std::nullopt; }
+
+	void Module::DrawCargoInfo(CargoInfo cargoInfo, oapi::Sketchpad* skp, int x, int& y, int lineSpacing)
+	{ if (pCoreModule) pCoreModule->DrawCargoInfo(cargoInfo, skp, x, y, lineSpacing); }
 
 	size_t Module::GetAvailCargoCount() { return pCoreModule ? pCoreModule->GetAvailCargoCount() : 0; }
 
