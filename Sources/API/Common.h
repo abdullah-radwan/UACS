@@ -10,7 +10,8 @@ namespace UACS
 	enum Message
 	{
 		ASTR_INGRS,
-		ASTR_EGRS
+		ASTR_EGRS,
+		ACTN_TRIG
 	};
 
 	struct GroundInfo
@@ -108,6 +109,12 @@ namespace UACS
 		*/
 		VECTOR3 rot;
 
+		/**
+		 * @brief The airlock ingress range in meters.
+		 * The range is calculated from pos in space, and from gndInfo.pos on ground.
+		*/
+		double range{ 5 };
+
 		bool open{ true };
 
 		/// The astronaut egress velocity (if egressed in space) in meters per second.
@@ -120,23 +127,41 @@ namespace UACS
 		DOCKHANDLE hDock{};
 	};
 
+	struct ActionInfo
+	{
+		std::string name;
+
+		/// The action area position in vessel-relative coordinates.
+		VECTOR3 pos;
+
+		/// The action area trigger range in meters.
+		double range{ 5 };
+
+		bool enabled{ true };
+	};
+
 	struct VslAstrInfo
 	{
 		std::vector<StationInfo> stations;
 		std::vector<AirlockInfo> airlocks;
+		std::vector<ActionInfo> actionAreas;
 	};
 
 	enum IngressResult
 	{
 		INGRS_SUCCED,
 
-		/// No suitable airlock is within a 10-meter range if hVessel is nullptr, or the passed vessel is outside the 10-meter range.
+		/**
+		 * @brief If hVessel is nullptr: No suitable airlock/action area is in range.
+		 * If airlockIdx or actionIdx is nullopt: No suitable airlock/action area for the passed vessel is in range.
+		 * If airlockIdx or actionIdx is passed: The airlock/action area is out of range.
+		*/
 		INGRS_NOT_IN_RNG,
 
-		/// The passed vessel has no airlocks.
+		/// The passed vessel has no airlocks or no action areas.
 		INGRS_ARLCK_UNDEF,
 
-		/// The passed airlock (or all airlocks if no airlock is passed) is closed.
+		/// The passed airlock or action area (or all airlocks or action areas if airlockIdx or actionIdx is nullopt) is closed or disabled.
 		INGRS_ARLCK_CLSD,
 
 		/// A vessel is docked to the passed airlock docking port.
@@ -148,7 +173,7 @@ namespace UACS
 		/// The passed station (or all stations if no station is passed) is occupied.
 		INGRS_STN_OCCP,
 
-		/// The passed vessel rejected the astronaut ingress.
+		/// The vessel rejected the astronaut ingress or the action area trigger.
 		INGRS_VSL_REJC,
 
 		INGRS_FAIL

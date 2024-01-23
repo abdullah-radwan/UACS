@@ -23,6 +23,13 @@ namespace UACS
 		size_t stationIdx;
 	};
 
+	struct NearestAction
+	{
+		OBJHANDLE hVessel;
+		size_t actionIdx;
+		ActionInfo actionInfo;
+	};
+
 	/// UACS astronaut API.
 	class Astronaut : public VESSEL4
 	{
@@ -77,36 +84,54 @@ namespace UACS
 		const VslAstrInfo* GetVslAstrInfo(OBJHANDLE hVessel);
 
 		/**
-		 * @brief Gets the nearest airlock with an empty station in the passed range.
+		 * @brief Gets the nearest airlock within the passed range.
 		 * @param range The search range in meters.
+		 * @param airlockOpen Set true if the airlock must be open, false if not.
+		 * @param stationEmpty Set true if the vessel must have at least one empty station, false if not.
 		 * @return The nearest airlock.
 		*/
-		std::optional<NearestAirlock> GetNearestAirlock(double range);
+		std::optional<NearestAirlock> GetNearestAirlock(double range, bool airlockOpen = true, bool stationEmpty = true);
 
 		/**
-		 * @brief Gets the nearest breathable vessel in the breathable search range.
-		 * @note The nearest breathable vessel isn't necessarily a cargo. It can be a station.
+		 * @brief Gets the nearest breathable vessel (either a cargo or station) within the passed range.
 		 * @return A pair of the nearest breathable vessel handle and its relative position. If no vessel was found, a nullptr and empty position is returned.
 		*/
 		std::pair<OBJHANDLE, VECTOR3> GetNearestBreathable(double range);
 
 		/**
-		 * @brief Determines whether the vessel is in a breathable atmosphere or vessel.
+		 * @brief Gets the nearest enabled action area in the passed range.
+		 * @param range The search range in meters.
+		 * @param actionEnabled Set true if the action area must be enabled, false if not.
+		 * @return The nearest action.
+		*/
+		std::optional<NearestAction> GetNearestAction(double range, bool areaEnabled = true);
+
+		/**
+		 * @brief Determines whether the vessel is in a breathable vessel or atmosphere.
 		 *
 		 * The surrounding atmosphere is considered breathable if its temperature is between 223 and 373 kelvin, and pressure between 36 and 250 kPa.
 		 * The vessel is considered in a breathable vessel if the distance between the vessel and the nearest breathable vessel is less than the breathable vessel radius.
+		 * @param checkAtm Set true to check if the vessel is in a breathable atmosphere or vessel, false to check for breathable vessels only.
 		 * @return True if the vessel is in a breathable area, false if not.
 		*/
-		bool InBreathableArea();
+		bool InBreathable(bool checkAtm = true);
 
 		/**
 		 * @brief Ingresses the astronaut to the passed station via the passed airlock in the passed vessel.
-		 * @param hVessel The vessel handle. If nullptr is passed, the nearest airlock in a 10-meter range is used.
+		 * @param hVessel The vessel handle. If nullptr is passed, the nearest airlock in a 10 km range is used.
 		 * @param airlockIdx The airlock index. If nullopt is passed, the first open airlock is used.
 		 * @param stationIdx The station index. If nullopt is passed, the first empty station is used.
 		 * @return The ingress result.
 		*/
 		IngressResult Ingress(OBJHANDLE hVessel = nullptr, std::optional<size_t> airlockIdx = {}, std::optional<size_t> stationIdx = {});
+
+		/**
+		 * @brief Triggers the passed action area in the passed vessel.
+		 * @param hVessel The vessel handle. If nullptr is passed, the nearest action area in a 10 km range is used.
+		 * @param actionIdx The action area index. If nullopt is passed, the first enabled action area is used.
+		 * @return The trigger result as the IngressResult enum.
+		*/
+		IngressResult TriggerAction(OBJHANDLE hVessel = nullptr, std::optional<size_t> actionIdx = {});
 
 	private:
 		HINSTANCE coreDLL;

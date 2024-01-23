@@ -21,7 +21,6 @@ namespace UACS
 		void Carrier::clbkSetClassCaps(FILEHANDLE cfg)
 		{
 			UACS::AirlockInfo airInfo;
-
 			airInfo.name = "Airlock";
 			airInfo.pos = { 0,-0.74, 3.5 };
 			airInfo.dir = { 0,0,-1 };
@@ -33,7 +32,6 @@ namespace UACS
 			vslAstrInfo.stations.emplace_back("Pilot");
 
 			UACS::SlotInfo slotInfo;
-
 			slotInfo.hAttach = CreateAttachment(false, { 0,1.3,-1 }, { 0,1,0 }, { 0,0,1 }, "UACS");
 			slotInfo.holdDir = { 0, -1, 0 };
 			slotInfo.relVel = 0.05;
@@ -259,6 +257,7 @@ namespace UACS
 
 					return 1;
 				}
+
 				default:
 					return 0;
 				}

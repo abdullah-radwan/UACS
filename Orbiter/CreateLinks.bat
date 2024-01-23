@@ -1,4 +1,4 @@
-SET "ORBITER_FOLDER=C:\Games\Orbiter2016\"
+SET "ORBITER_FOLDER=D:\Games\Orbiter2016\"
 SET "VESSEL_FOLDER=%ORBITER_FOLDER%Orbitersdk\UACS\Orbiter\"
 
 SET "LINK_PATH=Config\UACS.cfg"

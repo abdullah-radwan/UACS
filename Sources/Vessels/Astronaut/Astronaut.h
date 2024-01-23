@@ -64,14 +64,12 @@ namespace UACS
 				std::string message;
 				double timer{};
 
-				std::string modeMsg;
-				double modeTimer{ 5 };
-
 				size_t availIdx{};
 				bool drainFuel{ true };
 
 				size_t vslIdx{};
 				OBJHANDLE hVessel{};
+				OBJHANDLE hVslAction{};
 
 				std::map<size_t, OBJHANDLE> vslMap, astrMap, cargoMap;
 
@@ -81,6 +79,7 @@ namespace UACS
 					std::optional<std::string> resources{};
 					size_t arlckIdx{};
 					size_t statIdx{};
+					size_t actionIdx{};
 				} vslInfo;
 
 				int rightX, startY;

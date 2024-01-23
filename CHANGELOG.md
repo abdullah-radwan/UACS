@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Pre-release 6 - 2024-01-23
+### Added
+- Action areas.
+### Changed
+- Ingress range are now specified by the vessel.
+- Renamed InBreathableArea to InBreathable. Astronauts can specify whether to check atmosphere or not.
+- Ability to specify whether the airlock must be open or vessel has at least one empty station in GetNearestAirlock.
+- Default astronaut HUD.
+### Fixed
+- Airlock ground position ignored in Ingress and GetNearestAirlock methods.
+
 ## Pre-release 5 - 2023-11-25
 ### Added
 - DrawAstrInfo and DrawCargoInfo methods.

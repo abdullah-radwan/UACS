@@ -1,5 +1,6 @@
 #pragma once
 #include "..\API\Astronaut.h"
+#include <span>
 
 namespace UACS
 {
@@ -15,19 +16,23 @@ namespace UACS
 
 			virtual size_t GetScnAstrCount();
 
-			virtual std::pair<OBJHANDLE, const UACS::AstrInfo*> GetAstrInfoByIndex(size_t);
+			virtual std::pair<OBJHANDLE, const AstrInfo*> GetAstrInfoByIndex(size_t);
 
-			virtual const UACS::AstrInfo* GetAstrInfoByHandle(OBJHANDLE);
+			virtual const AstrInfo* GetAstrInfoByHandle(OBJHANDLE);
 
-			virtual const UACS::VslAstrInfo* GetVslAstrInfo(OBJHANDLE);
+			virtual const VslAstrInfo* GetVslAstrInfo(OBJHANDLE);
 
-			virtual std::optional<UACS::NearestAirlock> GetNearestAirlock(double);
+			virtual std::optional<NearestAirlock> GetNearestAirlock(double, bool, bool);
 
 			virtual std::pair<OBJHANDLE, VECTOR3> GetNearestBreathable(double);
 
-			virtual bool InBreathableArea();
+			virtual std::optional<NearestAction> GetNearestAction(double, bool);
 
-			virtual UACS::IngressResult Ingress(OBJHANDLE, std::optional<size_t>, std::optional<size_t>);
+			virtual bool InBreathable(bool);
+
+			virtual IngressResult Ingress(OBJHANDLE, std::optional<size_t>, std::optional<size_t>);
+
+			virtual IngressResult TriggerAction(OBJHANDLE, std::optional<size_t>);
 
 		private:
 			UACS::Astronaut* pAstr;

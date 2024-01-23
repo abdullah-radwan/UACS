@@ -1,4 +1,5 @@
 #include "Astronaut.h"
+#include "Astronaut.h"
 #include "..\Core\Defs.h"
 
 namespace UACS
@@ -32,12 +33,18 @@ namespace UACS
 
 	const VslAstrInfo* Astronaut::GetVslAstrInfo(OBJHANDLE hVessel) { return pCoreAstr->GetVslAstrInfo(hVessel); }
 
-	std::optional<NearestAirlock> Astronaut::GetNearestAirlock(double range) { return pCoreAstr->GetNearestAirlock(range); }
+	std::optional<NearestAirlock> Astronaut::GetNearestAirlock(double range, bool airlockOpen, bool stationEmpty)
+	{ return pCoreAstr->GetNearestAirlock(range, airlockOpen, stationEmpty); }
 
 	std::pair<OBJHANDLE, VECTOR3> Astronaut::GetNearestBreathable(double range) { return pCoreAstr->GetNearestBreathable(range); }
 
-	bool Astronaut::InBreathableArea() { return pCoreAstr->InBreathableArea(); }
+	std::optional<NearestAction> Astronaut::GetNearestAction(double range, bool areaEnabled) { return pCoreAstr->GetNearestAction(range, areaEnabled); }
+
+	bool Astronaut::InBreathable(bool checkAtm) { return pCoreAstr->InBreathable(checkAtm); }
 
 	IngressResult Astronaut::Ingress(OBJHANDLE hVessel, std::optional<size_t> airlockIdx, std::optional<size_t> stationIdx)
 	{ return pCoreAstr->Ingress(hVessel, airlockIdx, stationIdx); }
+
+	IngressResult Astronaut::TriggerAction(OBJHANDLE hVessel, std::optional<size_t> actionIdx)
+	{ return pCoreAstr->TriggerAction(hVessel, actionIdx); }
 }

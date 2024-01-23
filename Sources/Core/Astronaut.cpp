@@ -20,70 +20,69 @@ namespace UACS
 
 		size_t Astronaut::GetScnAstrCount() { return astrVector.size(); }
 
-		std::pair<OBJHANDLE, const UACS::AstrInfo*> Astronaut::GetAstrInfoByIndex(size_t astrIdx) { return Core::GetAstrInfoByIndex(astrIdx); }
+		std::pair<OBJHANDLE, const AstrInfo*> Astronaut::GetAstrInfoByIndex(size_t astrIdx) { return Core::GetAstrInfoByIndex(astrIdx); }
 
-		const UACS::AstrInfo* Astronaut::GetAstrInfoByHandle(OBJHANDLE hAstr) { return Core::GetAstrInfoByHandle(hAstr); }
+		const AstrInfo* Astronaut::GetAstrInfoByHandle(OBJHANDLE hAstr) { return Core::GetAstrInfoByHandle(hAstr); }
 
-		const UACS::VslAstrInfo* Astronaut::GetVslAstrInfo(OBJHANDLE hVessel) { return Core::GetVslAstrInfo(hVessel); }
+		const VslAstrInfo* Astronaut::GetVslAstrInfo(OBJHANDLE hVessel) { return Core::GetVslAstrInfo(hVessel); }
 
-		std::optional<UACS::NearestAirlock> Astronaut::GetNearestAirlock(double range)
+		std::optional<NearestAirlock> Astronaut::GetNearestAirlock(double range, bool airlockOpen, bool stationEmpty)
 		{
-			UACS::NearestAirlock nearAirlock;
-			UACS::VslAstrInfo* nearVslInfo;
+			std::map<double, std::pair<OBJHANDLE, VslAstrInfo*>> vslMap;
 
-			double nearDistance = range;
-
-			bool found{};
-
-			for (const auto& [hVessel, vesselInfo] : vslAstrMap)
+			for (const auto& [hVessel, vslInfo] : vslAstrMap)
 			{
-				if (vesselInfo->airlocks.empty() || vesselInfo->stations.empty()) continue;
+				if (vslInfo->airlocks.empty() || vslInfo->stations.empty()) continue;
 
-				VECTOR3 vesselPos;
-				pAstr->GetRelativePos(hVessel, vesselPos);
+				VECTOR3 vslPos;
+				pAstr->GetRelativePos(hVessel, vslPos);
 
-				const double distance = length(vesselPos);
+				const double distance = length(vslPos);
 
-				if (distance > nearDistance + oapiGetSize(hVessel) || vesselInfo->stations.at(GetEmptyStationIndex(vesselInfo->stations)).astrInfo) continue;
-
-				found = true;
-
-				nearAirlock.hVessel = hVessel;
-				nearDistance = distance;
-				nearVslInfo = vesselInfo;
+				if (distance <= range + oapiGetSize(hVessel)) vslMap[distance] = { hVessel, vslInfo };
 			}
 
-			if (!found) return {};
+			NearestAirlock nearAirlock;
 
-			nearAirlock.stationIdx = GetEmptyStationIndex(nearVslInfo->stations);
-
-			nearDistance = range;
-
-			found = {};
-
-			for (size_t airlockIdx{}; airlockIdx < nearVslInfo->airlocks.size(); ++airlockIdx)
+			for (const auto& [distance, vslInfo] : vslMap)
 			{
-				const auto& airlockInfo = nearVslInfo->airlocks.at(airlockIdx);
+				nearAirlock.hVessel = vslInfo.first;
 
-				VECTOR3 airlockPos;
-				oapiLocalToGlobal(nearAirlock.hVessel, &airlockInfo.pos, &airlockPos);
-				pAstr->Global2Local(airlockPos, airlockPos);
+				nearAirlock.stationIdx = GetEmptyStationIndex(vslInfo.second->stations);
 
-				const double distance = length(airlockPos);
+				if (stationEmpty && vslInfo.second->stations.at(nearAirlock.stationIdx).astrInfo) continue;
 
-				if (distance > nearDistance) continue;
+				bool found{};
+				double nearDistance = range;
 
-				found = true;
+				for (size_t airlockIdx{}; airlockIdx < vslInfo.second->airlocks.size(); ++airlockIdx)
+				{
+					const auto& airlockInfo = vslInfo.second->airlocks.at(airlockIdx);
 
-				nearAirlock.airlockIdx = airlockIdx;
-				nearAirlock.airlockInfo = airlockInfo;
-				nearAirlock.airlockInfo.pos = airlockPos;
-				nearDistance = distance;
+					if (airlockOpen && !airlockInfo.open) continue;
+
+					VESSEL* pVessel = oapiGetVesselInterface(nearAirlock.hVessel);
+					VECTOR3 airlockPos = pVessel->GetFlightStatus() && airlockInfo.gndInfo.pos ? *airlockInfo.gndInfo.pos : airlockInfo.pos;
+
+					pVessel->Local2Global(airlockPos, airlockPos);
+					pAstr->Global2Local(airlockPos, airlockPos);
+
+					const double distance = length(airlockPos);
+
+					if (distance > nearDistance) continue;
+
+					found = true;
+
+					nearAirlock.airlockIdx = airlockIdx;
+					nearAirlock.airlockInfo = airlockInfo;
+					nearAirlock.airlockInfo.pos = airlockPos;
+					nearDistance = distance;
+				}
+
+				if (found) return nearAirlock;
 			}
 
-			if (!found) return {};
-
-			return nearAirlock;
+			return {};
 		}
 
 		std::pair<OBJHANDLE, VECTOR3> Astronaut::GetNearestBreathable(double range)
@@ -145,12 +144,67 @@ namespace UACS
 			return { hNearest, nearestPos };
 		}
 
-		bool Astronaut::InBreathableArea()
+		std::optional<NearestAction> Astronaut::GetNearestAction(double range, bool areaEnabled)
 		{
-			const double pressure = pAstr->GetAtmPressure();
-			const double temp = pAstr->GetAtmTemperature();
+			std::map<double, std::pair<OBJHANDLE, VslAstrInfo*>> vslMap;
+			
+			for (const auto& [hVessel, vslInfo] : vslAstrMap)
+			{
+				if (vslInfo->actionAreas.empty()) continue;
 
-			if (temp > 223 && temp < 373 && pressure > 3.6e4 && pressure < 2.5e5) return true;
+				VECTOR3 vesselPos;
+				pAstr->GetRelativePos(hVessel, vesselPos);
+
+				const double distance = length(vesselPos);
+
+				if (distance <= range + oapiGetSize(hVessel)) vslMap[distance] = { hVessel, vslInfo };
+			}
+
+			NearestAction nearAction;
+
+			for (const auto& [distance, vslInfo] : vslMap)
+			{
+				nearAction.hVessel = vslInfo.first;
+				bool found{};
+				double nearDistance = range;
+
+				for (size_t actionIdx{}; actionIdx < vslInfo.second->actionAreas.size(); ++actionIdx)
+				{
+					const auto& actionInfo = vslInfo.second->actionAreas.at(actionIdx);
+
+					if (areaEnabled && !actionInfo.enabled) continue;
+
+					VECTOR3 actionPos;
+					oapiLocalToGlobal(nearAction.hVessel, &actionInfo.pos, &actionPos);
+					pAstr->Global2Local(actionPos, actionPos);
+
+					const double distance = length(actionPos);
+
+					if (distance > nearDistance) continue;
+
+					found = true;
+
+					nearAction.actionIdx = actionIdx;
+					nearAction.actionInfo = actionInfo;
+					nearAction.actionInfo.pos = actionPos;
+					nearDistance = distance;
+				}
+
+				if (found) return nearAction;
+			}
+
+			return {};
+		}
+
+		bool Astronaut::InBreathable(bool checkAtm)
+		{
+			if (checkAtm)
+			{
+				const double pressure = pAstr->GetAtmPressure();
+				const double temp = pAstr->GetAtmTemperature();
+
+				if (temp > 223 && temp < 373 && pressure > 3.6e4 && pressure < 2.5e5) return true;
+			}
 
 			passCheck = true;
 			auto result = GetNearestBreathable(0);
@@ -159,56 +213,57 @@ namespace UACS
 			return result.first;
 		}
 
-		UACS::IngressResult Astronaut::Ingress(OBJHANDLE hVessel, std::optional<size_t> airlockIdx, std::optional<size_t> stationIdx)
+		IngressResult Astronaut::Ingress(OBJHANDLE hVessel, std::optional<size_t> airlockIdx, std::optional<size_t> stationIdx)
 		{
 			if (hVessel)
 			{
 				const auto& vesselPair = vslAstrMap.find(hVessel);
 
-				if (vesselPair == vslAstrMap.end()) return UACS::INGRS_ARLCK_UNDEF;
+				if (vesselPair == vslAstrMap.end()) return INGRS_ARLCK_UNDEF;
 
 				const auto& airlocks = vesselPair->second->airlocks;
 
-				if (airlocks.empty()) return UACS::INGRS_ARLCK_UNDEF;
+				if (airlocks.empty()) return INGRS_ARLCK_UNDEF;
 
 				const auto& stations = vesselPair->second->stations;
 
-				if (stations.empty()) return UACS::INGRS_STN_UNDEF;
+				if (stations.empty()) return INGRS_STN_UNDEF;
 
 				VESSEL* pVessel = oapiGetVesselInterface(hVessel);
 
 				if (!airlockIdx)
 				{
-					static auto pred = [pVessel](const UACS::AirlockInfo& airlockInfo) { return airlockInfo.open && !(airlockInfo.hDock && pVessel->GetDockStatus(airlockInfo.hDock)); };
+					static auto pred = [pVessel](const AirlockInfo& airlockInfo) { return airlockInfo.open && !(airlockInfo.hDock && pVessel->GetDockStatus(airlockInfo.hDock)); };
 
 					auto airlockIt = std::ranges::find_if(airlocks, pred);
 
-					if (airlockIt == airlocks.end()) return UACS::INGRS_ARLCK_CLSD;
+					if (airlockIt == airlocks.end()) return INGRS_ARLCK_CLSD;
 
 					airlockIdx = airlockIt - airlocks.begin();
 				}
 
-				else if (!airlocks.at(*airlockIdx).open) return UACS::INGRS_ARLCK_CLSD;
+				else if (!airlocks.at(*airlockIdx).open) return INGRS_ARLCK_CLSD;
 
 				if (!stationIdx) stationIdx = GetEmptyStationIndex(stations);
 
-				if (stations.at(*stationIdx).astrInfo) return UACS::INGRS_STN_OCCP;
+				if (stations.at(*stationIdx).astrInfo) return INGRS_STN_OCCP;
 
-				const UACS::AirlockInfo& airlockInfo = airlocks.at(*airlockIdx);
+				const AirlockInfo& airlockInfo = airlocks.at(*airlockIdx);
 
-				if (airlockInfo.hDock && pVessel->GetDockStatus(airlockInfo.hDock)) return UACS::INGRS_ARLCK_DCKD;
+				if (airlockInfo.hDock && pVessel->GetDockStatus(airlockInfo.hDock)) return INGRS_ARLCK_DCKD;
 
-				VECTOR3 airlockPos;
-				pVessel->Local2Global(airlockInfo.pos, airlockPos);
+				VECTOR3 airlockPos = pVessel->GetFlightStatus() && airlockInfo.gndInfo.pos ? *airlockInfo.gndInfo.pos : airlockInfo.pos;
+
+				pVessel->Local2Global(airlockPos, airlockPos);
 				pAstr->Global2Local(airlockPos, airlockPos);
 
-				if (length(airlockPos) > 10) return UACS::INGRS_NOT_IN_RNG;
+				if (length(airlockPos) > airlockInfo.range) return INGRS_NOT_IN_RNG;
 			}
 			else
 			{
-				auto nearAirlock = GetNearestAirlock(10);
+				auto nearAirlock = GetNearestAirlock(10e3, true, true);
 
-				if (!nearAirlock) return UACS::INGRS_NOT_IN_RNG;
+				if (!nearAirlock || length(nearAirlock->airlockInfo.pos) > nearAirlock->airlockInfo.range) return INGRS_NOT_IN_RNG;
 
 				hVessel = nearAirlock->hVessel;
 
@@ -219,18 +274,68 @@ namespace UACS
 
 			if (VESSEL* pVessel = oapiGetVesselInterface(hVessel); pVessel->Version() >= 3)
 			{
-				if (!static_cast<VESSEL3*>(pVessel)->clbkGeneric(UACS::MSG, UACS::ASTR_INGRS, &(*stationIdx)))
+				if (!static_cast<VESSEL3*>(pVessel)->clbkGeneric(MSG, ASTR_INGRS, &(*stationIdx)))
 				{
 					astrInfo = {};
-					return UACS::INGRS_VSL_REJC;
+					return INGRS_VSL_REJC;
 				}
 			}
 
 			oapiDeleteVessel(pAstr->GetHandle(), hVessel);
-
 			oapiSetFocusObject(hVessel);
 
-			return UACS::INGRS_SUCCED;
+			return INGRS_SUCCED;
+		}
+
+		IngressResult Astronaut::TriggerAction(OBJHANDLE hVessel, std::optional<size_t> actionIdx)
+		{
+			if (hVessel)
+			{
+				const auto& vesselPair = vslAstrMap.find(hVessel);
+
+				if (vesselPair == vslAstrMap.end()) return INGRS_ARLCK_UNDEF;
+
+				const auto& actionAreas = vesselPair->second->actionAreas;
+
+				if (actionAreas.empty()) return INGRS_ARLCK_UNDEF;
+
+				if (!actionIdx)
+				{
+					static auto pred = [](const ActionInfo& actionInfo) { return actionInfo.enabled; };
+
+					auto actionIt = std::ranges::find_if(actionAreas, pred);
+
+					if (actionIt == actionAreas.end()) return INGRS_ARLCK_CLSD;
+
+					actionIdx = actionIt - actionAreas.begin();
+				}
+
+				else if (!actionAreas.at(*actionIdx).enabled) return INGRS_ARLCK_CLSD;
+
+				const ActionInfo& actionInfo = actionAreas.at(*actionIdx);
+
+				VECTOR3 actionPos;
+				oapiLocalToGlobal(hVessel, &actionInfo.pos, &actionPos);
+				pAstr->Global2Local(actionPos, actionPos);
+
+				if (length(actionPos) > actionInfo.range) return INGRS_NOT_IN_RNG;
+			}
+			else
+			{
+				auto nearAction = GetNearestAction(10e3, true);
+
+				if (!nearAction || length(nearAction->actionInfo.pos) > nearAction->actionInfo.range) return INGRS_NOT_IN_RNG;
+
+				hVessel = nearAction->hVessel;
+
+				actionIdx = nearAction->actionIdx;
+			}
+
+			if (VESSEL* pVessel = oapiGetVesselInterface(hVessel); pVessel->Version() >= 3)
+				if (!static_cast<VESSEL3*>(pVessel)->clbkGeneric(MSG, ACTN_TRIG, &(*actionIdx)))
+					return INGRS_VSL_REJC;
+
+			return INGRS_SUCCED;
 		}
 	}
 }
