@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Pre-release 7 - 2024-06-20
+### Added
+- Astronaut custom cockpit.
+- NASA Z2 astronaut suit.
+- EnableCockpit and ShowMeshGenCockpit astronat config options.
+- Lamps to Moon base scenario.
+- UCSO containers.
+- D3D9 textures for several cargoes.
+### Changed
+- Only one spotlight can be defined in astronaut config file.
+- Unpackable only cargo naming scheme when unpacked.
+- Solar panels and lamps unpacked count to 4.
+- Cargo EnableFocus config option to DisableFocus.
+- Touchdown points when the suit is off.
+- Suit is now off when adding astronaut to a breathable atmosphere.
+- Astronaut will lay down on the face when dead.
+- Cargo UnpackableOnly is forced true when UnpackingType is Orbiter vessel.
+- Astronaut headlight parameters.
+- Renamed astronaut Name, Role, and BodyMass to DefaultName, DefaultRole, and DefaultBodyMass.
+- Renamed AstronautSuit to GenericSuit.
+- Astronaut cargo attachment point position.
+- Containers for various cargoes.
+### Fixed
+- clbkGeneric not called when adding or transfering astronaut.
+- Astronaut being not able to release cargo inside another cargo.
+- Astronaut cargo ground release position offset from slot position.
+- License being MIT instead of GPLv3.
+
 ## Pre-release 6 - 2024-01-23
 ### Added
 - Action areas.

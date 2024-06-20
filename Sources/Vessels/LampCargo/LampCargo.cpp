@@ -87,15 +87,17 @@ namespace UACS
 
 			VESSELSTATUS2 status = GetVesselStatus(this);
 
-			for (size_t cargo{ 1 }; cargo < UNPACK_COUNT; ++cargo)
+			for (size_t cargo{}; cargo < UNPACK_COUNT; ++cargo)
 			{
-				std::string spawnName = "CargoLamp";
+				std::string spawnName = "Lamp";
 				UACS::SetSpawnName(spawnName);
 
 				OBJHANDLE hCargo = oapiCreateVesselEx(spawnName.c_str(), GetClassNameA(), &status);
 
 				if (!hCargo || !static_cast<LampCargo*>(oapiGetVesselInterface(hCargo))->UnpackCargo(false)) return false;
 			}
+
+			oapiDeleteVessel(GetHandle());
 
 			return true;
 		}
@@ -106,7 +108,7 @@ namespace UACS
 
 			spotLight->Activate(false);
 
-			InsertMesh("UACS/Container2", 0);
+			InsertMesh("UACS/Container4", 0);
 
 			SetEmptyMass(PACK_MASS);
 

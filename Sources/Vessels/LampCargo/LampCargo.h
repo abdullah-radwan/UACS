@@ -20,8 +20,8 @@ namespace UACS
 			bool UnpackCargo(bool firstUnpack = true);
 
 		private:
-			constexpr static inline size_t UNPACK_COUNT = 5;
-			constexpr static inline double PACK_MASS = 700;
+			constexpr static inline size_t UNPACK_COUNT = 4;
+			constexpr static inline double PACK_MASS = 500;
 			constexpr static inline double UNPACK_MASS = 100;
 
 			const static inline struct

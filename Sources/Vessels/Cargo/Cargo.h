@@ -28,7 +28,7 @@ namespace UACS
 			struct UnpackMode { enum { MANUAL, RELEASED, DELAYED, LANDED }; };
 
 			inline static bool configLoaded{};
-			inline static bool enableFocus{};
+			inline static bool disableFocus{};
 			static void LoadConfig();
 
 			UACS::Cargo::CargoInfo cargoInfo;
@@ -48,8 +48,8 @@ namespace UACS
 			VECTOR3 unpackLeftPos{};
 
 			VECTOR3 unpackAttachPos{};
-			VECTOR3 unpackPMI{ -1,-1,-1 };
-			VECTOR3 unpackCS{ 20,20,20 };
+			std::optional<VECTOR3> unpackPMI;
+			std::optional<VECTOR3> unpackCS;
 
 			bool UnpackCargo(bool firstUnpack = true);
 			void SetPackedCaps(bool init = true);

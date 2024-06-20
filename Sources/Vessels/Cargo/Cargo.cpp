@@ -22,8 +22,8 @@ namespace UACS
 
 			if (hConfig)
 			{
-				if (!oapiReadItem_bool(hConfig, "EnableFocus", enableFocus))
-					oapiWriteLog("UACS cargo warning: Couldn't read EnableFocus setting, will use default value (FALSE)");
+				if (!oapiReadItem_bool(hConfig, "DisableFocus", disableFocus))
+					oapiWriteLog("UACS cargo warning: Couldn't read DisableFocus setting, will use default value (TRUE)");
 
 				oapiCloseFile(hConfig, FILE_IN_ZEROONFAIL);
 			}
@@ -56,6 +56,7 @@ namespace UACS
 				oapiReadItem_bool(cfg, "UnpackOnly", cargoInfo.unpackOnly);
 
 				if (!oapiReadItem_int(cfg, "UnpackingType", unpackType)) WarnAndTerminate("unpacking type", GetClassNameA(), "cargo");
+				if (unpackType == UnpackType::VESSEL) cargoInfo.unpackOnly = true;
 
 				oapiReadItem_int(cfg, "UnpackingMode", unpackMode);
 
@@ -79,8 +80,13 @@ namespace UACS
 					if (!oapiReadItem_float(cfg, "UnpackedSize", unpackSize)) WarnAndTerminate("unpacked size", GetClassNameA(), "cargo");
 
 					oapiReadItem_vec(cfg, "UnpackedAttachPos", unpackAttachPos);
-					oapiReadItem_vec(cfg, "UnpackedCrossSections", unpackCS);
-					oapiReadItem_vec(cfg, "UnpackedInertia", unpackPMI);
+
+					VECTOR3 cs;
+					if (oapiReadItem_vec(cfg, "UnpackedCrossSections", cs)) unpackCS = cs;
+
+					VECTOR3 pmi;
+					if (oapiReadItem_vec(cfg, "UnpackedInertia", pmi)) unpackPMI = pmi;
+
 					oapiReadItem_bool(cfg, "UnpackedBreathable", cargoInfo.breathable);
 
 					break;
@@ -99,7 +105,7 @@ namespace UACS
 
 			cargoInfo.unpacked = false;
 
-			SetEnableFocus(enableFocus);
+			SetEnableFocus(!disableFocus);
 
 			SetPackedCaps(false);
 		}
@@ -233,8 +239,6 @@ namespace UACS
 					hCargo = oapiCreateVesselEx(spawnName.c_str(), unpackVslModule.c_str(), &status);
 
 					if (!hCargo) return false;
-
-					if (!firstUnpack) break;
 				}
 
 				oapiDeleteVessel(GetHandle(), hCargo);
@@ -250,17 +254,17 @@ namespace UACS
 
 			VESSELSTATUS2 status = GetVesselStatus(this);
 
-			for (int cargo{ 1 }; cargo < unpackedCount; ++cargo)
+			for (int cargo{}; cargo < unpackedCount; ++cargo)
 			{
 				std::string spawnName = std::filesystem::path(GetClassNameA()).filename().string();
 				SetSpawnName(spawnName);
 
 				OBJHANDLE hCargo = oapiCreateVesselEx(spawnName.c_str(), GetClassNameA(), &status);
 
-				if (!hCargo) return false;
-
-				if (!static_cast<Cargo*>(oapiGetVesselInterface(hCargo))->UnpackCargo(false)) return false;
+				if (!hCargo || !static_cast<Cargo*>(oapiGetVesselInterface(hCargo))->UnpackCargo(false)) return false;
 			}
+
+			oapiDeleteVessel(GetHandle());
 
 			return true;
 		}
@@ -371,9 +375,8 @@ namespace UACS
 				SetTouchdownPoints(tdVtx.data(), tdVtx.size());
 			}
 
-			SetCrossSections(unpackCS);
-
-			SetPMI(unpackPMI);
+			if (unpackCS) SetCrossSections(*unpackCS);
+			if (unpackPMI) SetPMI(*unpackPMI);
 
 			cargoInfo.frontPos = unpackFrontPos;
 			cargoInfo.rightPos = unpackRightPos;

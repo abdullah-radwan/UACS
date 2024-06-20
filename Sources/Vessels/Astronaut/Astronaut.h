@@ -1,6 +1,7 @@
 #pragma once
 #include "..\..\API\Astronaut.h"
 #include "..\..\API\Module.h"
+#include <array>
 #include <forward_list>
 #include <map>
 
@@ -32,21 +33,26 @@ namespace UACS
 
 		private:
 			inline static bool configLoaded{};
+			inline static bool enableCockpit{ true };
+			inline static bool showMeshInCockpit{ true };
 			inline static bool enhancedMovements{ true };
 			inline static double searchRange{ 60e3 };
 			static void LoadConfig();
 
 			UACS::AstrInfo astrInfo;
+			VECTOR3 slotPos;
 			VECTOR3 suitHoldDir, bodyHoldDir;
 			double suitMass;
 
-			UINT suitMesh, bodyMesh;
-			double bodyHeight;
+			UINT suitMesh, bodyMesh, cockpitMesh;
+			double suitHeight, bodyHeight;
 			PROPELLANT_HANDLE hFuel, hOxy;
+			std::array<TOUCHDOWNVTX, 13> tdVtx;
 
 			std::string buffer;
 			bool keyDown{};
 			bool suitOn{ true };
+			bool suitRead{};
 			double consumptionRate{ 1 };
 
 			UACS::Module mdlAPI;
@@ -54,8 +60,13 @@ namespace UACS
 			SpotLight* spotLight1{};
 			SpotLight* spotLight2{};
 
-			enum { HUD_NST = 1, HUD_VSL, HUD_AST, HUD_CRG, HUD_SRT1, HUD_SRT2 };
+			struct {
+				UINT id;
+				double proc = 0;
+				int state = 0; // -1: Closing, 0: Stopped, 1: Opening
+			} visorAnim{};
 
+			enum { HUD_NST = 1, HUD_VSL, HUD_AST, HUD_CRG, HUD_SRT1, HUD_SRT2 };
 			struct HudInfo
 			{
 				size_t mode{ HUD_NONE };
@@ -84,14 +95,14 @@ namespace UACS
 
 				int rightX, startY;
 				int smallSpace, space, largeSpace;
-			} hudInfo;
+			} hudInfo{};
 
-			struct SurfaceInfo
+			struct
 			{
 				OBJHANDLE ref{};
 				double gravityAccel{};
 				double steerRatio{};
-			} surfInfo;
+			} surfInfo{};
 
 			struct ValueInfo
 			{
@@ -99,36 +110,32 @@ namespace UACS
 				double maxLimit, minLimit, maxSlowLimit, minSlowLimit;
 				double maxMinRate, returnRate;
 				double maxMinRateConst;
-			} lonSpeed, latSpeed, steerAngle;
+			} lonSpeed{}, latSpeed{}, steerAngle{};
 
 			double totalRunDist{};
 
-			struct HeadlightInfo
+			struct
 			{
-				struct
-				{
-					VECTOR3 pos;
-					VECTOR3 color{ 1,1,1 };
-					BEACONLIGHTSPEC spec{ BEACONSHAPE_DIFFUSE, &pos, &color, 0.02, 0.2, 0, 0, 0, false };
-				} beaconInfo;
+				VECTOR3 pos;
+				VECTOR3 dir;
+				const double range{ 100 };
+				const double att0{ 0.5 };
+				const double att1{};
+				const double att2{ 1e-3 };
+				const double umbra{ 25 * RAD };
+				const double penumbra{ PI05 };
+				const COLOUR4 diffuse{ 1,1,1,0 };
+				const COLOUR4 specular{ 1,1,1,0 };
+				const COLOUR4 ambient{ 0,0,0,0 };
+			} spotInfo{};
+			SpotLight* spotLight{};
 
-				struct
-				{
-					VECTOR3 pos;
-					VECTOR3 dir;
-					const double range{ 400 };
-					const double att0{ 0.01 };
-					const double att1{};
-					const double att2{ 0.05 };
-					const double umbra{ 30 * RAD };
-					const double penumbra{ PI05 };
-					const COLOUR4 diffuse{ 1,1,1,0 };
-					const COLOUR4 specular{ 1,1,1,0 };
-					const COLOUR4 ambient{ 0,0,0,0 };
-				} spotInfo;
-
-				SpotLight* spotLight;
-			}; std::forward_list<HeadlightInfo> headlights;
+			struct BeaconInfo
+			{
+				VECTOR3 pos;
+				VECTOR3 color{ 1,1,1 };
+				BEACONLIGHTSPEC spec{ BEACONSHAPE_DIFFUSE, &pos, &color, 0.02, 0.2, 0, 0, 0, false };
+			}; std::forward_list<BeaconInfo> beacons;
 
 			void InitPropellant();
 			void SetOxygenConsumption(double simdt);
@@ -143,7 +150,7 @@ namespace UACS
 
 			void SetHeadlight(bool active);
 			void SetSuit(bool on, bool checkBreath);
-			void Kill();
+			void Kill(bool isLanded);
 
 			void DrawNearHUD(int x, int y, oapi::Sketchpad* skp);
 			void DrawVslHUD(int x, int y, oapi::Sketchpad* skp);

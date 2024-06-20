@@ -38,7 +38,7 @@ Carrier:UACS\Carrier
   ASTR_OXYGEN 1.000000
   ASTR_FUEL 1.000000
   ASTR_ALIVE 1
-  ASTR_CLASSNAME UACS\Astronauts\Radwan
+  ASTR_CLASSNAME UACS\Astronauts\Generic
 END
 CargoFuel1:UACS\Cargoes\FuelContainer
   STATUS Orbiting Earth

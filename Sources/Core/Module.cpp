@@ -94,28 +94,26 @@ namespace UACS
 
 			for (size_t idx{}; idx < pVslAstrInfo->stations.size(); ++idx)
 			{
-				auto& astrInfoOpt = pVslAstrInfo->stations.at(idx).astrInfo;
-				if (!astrInfoOpt) continue;
-
-				auto& astrInfo = *astrInfoOpt;
+				auto& astrInfo = pVslAstrInfo->stations.at(idx).astrInfo;
+				if (!astrInfo) continue;
 
 				oapiWriteScenario_int(scn, "ASTR_STATION", idx);
 
-				oapiWriteScenario_string(scn, "ASTR_NAME", astrInfo.name.data());
+				oapiWriteScenario_string(scn, "ASTR_NAME", astrInfo->name.data());
 
-				oapiWriteScenario_string(scn, "ASTR_ROLE", astrInfo.role.data());
+				oapiWriteScenario_string(scn, "ASTR_ROLE", astrInfo->role.data());
 
-				oapiWriteScenario_float(scn, "ASTR_MASS", astrInfo.mass);
+				oapiWriteScenario_float(scn, "ASTR_MASS", astrInfo->mass);
 
-				oapiWriteScenario_float(scn, "ASTR_OXYGEN", astrInfo.oxyLvl);
+				oapiWriteScenario_float(scn, "ASTR_OXYGEN", astrInfo->oxyLvl);
 
-				oapiWriteScenario_float(scn, "ASTR_FUEL", astrInfo.fuelLvl);
+				oapiWriteScenario_float(scn, "ASTR_FUEL", astrInfo->fuelLvl);
 
-				oapiWriteScenario_int(scn, "ASTR_ALIVE", astrInfo.alive);
+				oapiWriteScenario_int(scn, "ASTR_ALIVE", astrInfo->alive);
 
-				oapiWriteScenario_string(scn, "ASTR_CLASSNAME", astrInfo.className.data());
+				oapiWriteScenario_string(scn, "ASTR_CLASSNAME", astrInfo->className.data());
 
-				if (!astrInfo.customData.empty()) oapiWriteScenario_string(scn, "ASTR_CUSTOMDATA", astrInfo.customData.data());
+				if (!astrInfo->customData.empty()) oapiWriteScenario_string(scn, "ASTR_CUSTOMDATA", astrInfo->customData.data());
 			}
 		}
 
@@ -218,6 +216,8 @@ namespace UACS
 
 			pVslAstrInfo->stations.at(*stationIdx).astrInfo = astrInfo;
 
+			if (pVessel->Version() >= 3) static_cast<VESSEL3*>(pVessel)->clbkGeneric(UACS::MSG, UACS::ASTR_INGRS, &(*stationIdx));
+
 			return UACS::INGRS_SUCCED;
 		}
 
@@ -283,6 +283,8 @@ namespace UACS
 					}
 				}
 
+				if (pVessel->Version() >= 3) static_cast<VESSEL3*>(pVessel)->clbkGeneric(UACS::MSG, UACS::ASTR_EGRS, &(*stationIdx));
+
 				astrInfo = {};
 
 				return UACS::TRNS_SUCCED;
@@ -295,9 +297,9 @@ namespace UACS
 		{
 			if (!stationIdx) stationIdx = GetOccupiedStation();
 
-			std::optional<UACS::AstrInfo>& astrInfoOpt = pVslAstrInfo->stations.at(*stationIdx).astrInfo;
+			std::optional<UACS::AstrInfo>& astrInfo = pVslAstrInfo->stations.at(*stationIdx).astrInfo;
 
-			if (!astrInfoOpt) return UACS::EGRS_STN_EMPTY;
+			if (!astrInfo) return UACS::EGRS_STN_EMPTY;
 
 			if (!airlockIdx) airlockIdx = GetEgressAirlock();
 
@@ -307,8 +309,6 @@ namespace UACS
 
 			if (airlockInfo.hDock && pVessel->GetDockStatus(airlockInfo.hDock)) return UACS::EGRS_ARLCK_DCKD;
 
-			UACS::AstrInfo& astrInfo = *astrInfoOpt;
-
 			VESSELSTATUS2 status = GetVesselStatus(pVessel);
 
 			if (status.status)
@@ -317,7 +317,7 @@ namespace UACS
 				egressPos.y = 0;
 				if (!SetGroundPos<UACS::Astronaut>(status, egressPos, airlockInfo.gndInfo, astrVector)) return UACS::EGRS_NO_EMPTY_POS;
 
-				SetGroundRotation(status, astrInfo.height, egressPos.x, egressPos.z);
+				SetGroundRotation(status, astrInfo->height, egressPos.x, egressPos.z);
 			}
 
 			else 
@@ -343,24 +343,24 @@ namespace UACS
 				status.rvel += zForward * airlockInfo.relVel;
 			}
 
-			std::istringstream ss(astrInfo.name);
+			std::istringstream ss(astrInfo->name);
 			std::string spawnName;
 			while (std::getline(ss, spawnName, ' '));
 
 			spawnName.insert(0, "Astronaut");
 			SetSpawnName(spawnName);
 
-			OBJHANDLE hAstr = oapiCreateVesselEx(spawnName.c_str(), astrInfo.className.c_str(), &status);
+			OBJHANDLE hAstr = oapiCreateVesselEx(spawnName.c_str(), astrInfo->className.c_str(), &status);
 
 			if (!hAstr) return UACS::EGRS_FAIL;
 
 			auto pAstr = static_cast<UACS::Astronaut*>(oapiGetVesselInterface(hAstr));
 
-			bool infoSet = pAstr->clbkSetAstrInfo(astrInfo);
+			bool infoSet = pAstr->clbkSetAstrInfo(*astrInfo);
 
-			if (pVessel->Version() >= 3) static_cast<VESSEL3*>(pVessel)->clbkGeneric(UACS::MSG, UACS::ASTR_EGRS, &stationIdx);
+			if (pVessel->Version() >= 3) static_cast<VESSEL3*>(pVessel)->clbkGeneric(UACS::MSG, UACS::ASTR_EGRS, &(*stationIdx));
 
-			astrInfoOpt = {};
+			astrInfo = {};
 
 			return infoSet ? UACS::EGRS_SUCCED : UACS::EGRS_INFO_NOT_SET;
 		}
@@ -661,12 +661,12 @@ namespace UACS
 				VECTOR3 relPos;
 
 				if (slotInfo.gndInfo.pos) relPos = *slotInfo.gndInfo.pos;
-
 				else
 				{
 					pCargo->GetGlobalPos(relPos);
 					pVessel->Global2Local(relPos, relPos);
 				}
+				relPos.y = 0;
 
 				if (!SetGroundPos<UACS::Cargo>(status, relPos, slotInfo.gndInfo, cargoVector, pCargo)) return UACS::RLES_NO_EMPTY_POS;
 
@@ -925,8 +925,6 @@ namespace UACS
 		template<typename T>
 		bool Module::SetGroundPos(const VESSELSTATUS2& vslStatus, VECTOR3& initPos, UACS::GroundInfo gndInfo, std::span<T*> objSpan, const T* pOrgObj)
 		{
-			VECTOR3 pos = initPos;
-
 			if (!pVslCargoInfo->astrMode)
 			{
 				if (!gndInfo.colDir || !gndInfo.rowDir)
@@ -945,50 +943,50 @@ namespace UACS
 			}
 
 			const double bodySize = oapiGetSize(vslStatus.rbody);
-
 			VECTOR3 finalPos = initPos;
 
-			size_t colCount{}, rowCount{};
-			double spaceMargin = 0.5 * gndInfo.colSpace;
-
-		groundPosLoop:
-			for (const T* pObject : objSpan)
+			if (!pVslCargoInfo->astrMode)
 			{
-				if (pObject == pOrgObj) continue;
+				size_t colCount{}, rowCount{};
+				double spaceMargin = 0.5 * gndInfo.colSpace;
 
-				auto objStatus = GetVesselStatus(pObject);
-
-				if (!objStatus.status || objStatus.rbody != vslStatus.rbody) continue;
-
-				auto posCoords = Local2LngLat(bodySize, vslStatus.surf_lng, vslStatus.surf_lat, vslStatus.surf_hdg, finalPos);
-
-				if (DistLngLat(bodySize, objStatus.surf_lng, objStatus.surf_lat, posCoords.first, posCoords.second) > spaceMargin) continue;
-
-				else if (pVslCargoInfo->astrMode) return false;
-
-				++colCount;
-
-				if (colCount >= gndInfo.rowCount)
+			groundPosLoop:
+				for (const T* pObject : objSpan)
 				{
-					++rowCount;
+					if (pObject == pOrgObj) continue;
 
-					if (rowCount >= gndInfo.rowCount) return false;
+					auto objStatus = GetVesselStatus(pObject);
 
-					colCount = 0;
+					if (!objStatus.status || objStatus.rbody != vslStatus.rbody) continue;
 
-					finalPos = initPos;
+					auto posCoords = Local2LngLat(bodySize, vslStatus.surf_lng, vslStatus.surf_lat, vslStatus.surf_hdg, finalPos);
 
-					finalPos.x += gndInfo.rowSpace * rowCount * gndInfo.colDir->x;
-					finalPos.z += gndInfo.rowSpace * rowCount * gndInfo.colDir->z;
+					if (DistLngLat(bodySize, objStatus.surf_lng, objStatus.surf_lat, posCoords.first, posCoords.second) > spaceMargin) continue;
+
+					++colCount;
+
+					if (colCount >= gndInfo.rowCount)
+					{
+						++rowCount;
+
+						if (rowCount >= gndInfo.rowCount) return false;
+
+						colCount = 0;
+
+						finalPos = initPos;
+
+						finalPos.x += gndInfo.rowSpace * rowCount * gndInfo.colDir->x;
+						finalPos.z += gndInfo.rowSpace * rowCount * gndInfo.colDir->z;
+					}
+
+					else
+					{
+						finalPos.x += gndInfo.colSpace * gndInfo.rowDir->x;
+						finalPos.z += gndInfo.colSpace * gndInfo.rowDir->z;
+					}
+
+					goto groundPosLoop;
 				}
-
-				else
-				{
-					finalPos.x += gndInfo.colSpace * gndInfo.rowDir->x;
-					finalPos.z += gndInfo.colSpace * gndInfo.rowDir->z;
-				}
-
-				goto groundPosLoop;
 			}
 
 			auto posCoords = Local2LngLat(bodySize, vslStatus.surf_lng, vslStatus.surf_lat, vslStatus.surf_hdg, finalPos);
@@ -1060,6 +1058,10 @@ namespace UACS
 			auto cargoCargoInfo = pCargo->clbkGetCargoInfo();
 
 			cargoInfo.handle = pCargo->GetHandle();
+
+			VECTOR3 dir, rot;
+			pCargo->GetAttachmentParams(cargoCargoInfo->hAttach, cargoInfo.attachPos, dir, rot);
+
 			cargoInfo.attached = pCargo->GetAttachmentStatus(cargoCargoInfo->hAttach);
 			cargoInfo.type = cargoCargoInfo->type;
 			cargoInfo.resource = cargoCargoInfo->resource;

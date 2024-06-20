@@ -87,7 +87,7 @@ namespace UACS
 	}
 
 	inline void SetGroundRotation(VESSELSTATUS2& status, VECTOR3 frontPos, std::optional<VECTOR3> rightPos, std::optional<VECTOR3> leftPos,
-		double lngOffset = 0, double latOffset = 0, bool needTrans = false)
+		double lngOffset = 0, double latOffset = 0, bool needTrans = false, double rotAngle = PI05)
 	{
 		if (!rightPos || !leftPos)
 		{
@@ -126,7 +126,7 @@ namespace UACS
 		const MATRIX3 rot1 = RotationMatrix({ 0, PI05 - status.surf_lng, 0 });
 		const MATRIX3 rot2 = RotationMatrix({ -status.surf_lat, 0, 0 });
 		const MATRIX3 rot3 = RotationMatrix({ 0, 0, PI + status.surf_hdg });
-		const MATRIX3 rot4 = RotationMatrix({ PI05 - pitchAngle, 0, rollAngle });
+		const MATRIX3 rot4 = RotationMatrix({ rotAngle - pitchAngle, 0, rollAngle });
 		const MATRIX3 RotMatrix_Def = mul(rot1, mul(rot2, mul(rot3, rot4)));
 
 		status.arot.x = atan2(RotMatrix_Def.m23, RotMatrix_Def.m33);

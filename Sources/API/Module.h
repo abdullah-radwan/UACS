@@ -14,6 +14,9 @@ namespace UACS
 	{
 		OBJHANDLE handle;
 
+		/// The attachment point position in cargo-relative coordinates.
+		VECTOR3 attachPos;
+
 		/// If the cargo is attached to another vessel.
 		bool attached;
 

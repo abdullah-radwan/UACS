@@ -16,7 +16,7 @@ namespace UACS
 		OBJHANDLE hVessel;
 		size_t airlockIdx;
 
-		/// The airlock position is converted from the airlock vessel-relative coordinates to astronaut-relative coordinates.
+		/// The airlock position is converted from vessel-relative coordinates to astronaut-relative coordinates.
 		AirlockInfo airlockInfo;
 
 		/// The first empty station index.
@@ -27,6 +27,8 @@ namespace UACS
 	{
 		OBJHANDLE hVessel;
 		size_t actionIdx;
+
+		/// The action area position is converted from vessel-relative coordinates to astronaut-relative coordinates.
 		ActionInfo actionInfo;
 	};
 

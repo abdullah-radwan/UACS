@@ -391,8 +391,13 @@ namespace UACS
 					return 1;
 
 				case OAPI_KEY_D:
-					vslAstrInfo.stations.front() = {};
-					astrHUD.msg = "Success: Astronaut deleted.";
+					if (const auto& astrInfo = vslAstrInfo.stations.front().astrInfo)
+					{
+						SetEmptyMass(GetEmptyMass() - astrInfo->mass);
+						vslAstrInfo.stations.front() = {};
+						astrHUD.msg = "Success: Astronaut deleted.";
+					}
+					else astrHUD.msg = "Error: No astronaut onboard.";
 
 					astrHUD.timer = 0;
 					return 1;

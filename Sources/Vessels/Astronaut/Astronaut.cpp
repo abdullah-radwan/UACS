@@ -3,7 +3,6 @@
 
 #include <format>
 #include <sstream>
-#include <array>
 
 DLLCLBK VESSEL* ovcInit(OBJHANDLE hVessel, int fModel) { return new UACS::Vessel::Astronaut(hVessel, fModel); }
 
@@ -21,11 +20,17 @@ namespace UACS
 
 			if (hConfig)
 			{
+				if (!oapiReadItem_bool(hConfig, "EnableCockpit", enableCockpit))
+					oapiWriteLog("UACS astronaut warning: Couldn't read EnableCockpit setting, will use default value (TRUE)");
+
+				if (!oapiReadItem_bool(hConfig, "ShowMeshInCockpit", showMeshInCockpit))
+					oapiWriteLog("UACS astronaut warning: Couldn't read ShowMeshInCockpit setting, will use default value (TRUE)");
+
 				if (!oapiReadItem_bool(hConfig, "EnhancedMovements", enhancedMovements))
 					oapiWriteLog("UACS astronaut warning: Couldn't read EnhancedMovements setting, will use default value (TRUE)");
 
-				if (!oapiReadItem_float(hConfig, "SearchRange", searchRange))
-					oapiWriteLog("UACS astronaut warning: Couldn't read SearchRange setting, will use default value (60000)");
+				if (oapiReadItem_float(hConfig, "SearchRange", searchRange)) searchRange *= 1000;
+				else oapiWriteLog("UACS astronaut warning: Couldn't read SearchRange setting, will use default value (60)");
 
 				oapiCloseFile(hConfig, FILE_IN_ZEROONFAIL);
 			}
@@ -62,10 +67,10 @@ namespace UACS
 		{
 			char cBuffer[512];
 
-			if (!oapiReadItem_string(cfg, "Name", cBuffer)) WarnAndTerminate("name", GetClassNameA(), "astronaut");
+			if (!oapiReadItem_string(cfg, "DefaultName", cBuffer)) WarnAndTerminate("default name", GetClassNameA(), "astronaut");
 			astrInfo.name = cBuffer;
 
-			if (!oapiReadItem_string(cfg, "Role", cBuffer)) WarnAndTerminate("role", GetClassNameA(), "astronaut");
+			if (!oapiReadItem_string(cfg, "DefaultRole", cBuffer)) WarnAndTerminate("default role", GetClassNameA(), "astronaut");
 			astrInfo.role = cBuffer;
 
 			if (!oapiReadItem_string(cfg, "SuitMesh", cBuffer)) WarnAndTerminate("suit mesh", GetClassNameA(), "astronaut");
@@ -76,9 +81,9 @@ namespace UACS
 
 			if (!oapiReadItem_float(cfg, "SuitMass", suitMass)) WarnAndTerminate("suit mass", GetClassNameA(), "astronaut");
 
-			if (!oapiReadItem_float(cfg, "BodyMass", astrInfo.mass)) WarnAndTerminate("body mass", GetClassNameA(), "astronaut");
+			if (!oapiReadItem_float(cfg, "DefaultBodyMass", astrInfo.mass)) WarnAndTerminate("default body mass", GetClassNameA(), "astronaut");
 
-			if (!oapiReadItem_float(cfg, "SuitHeight", astrInfo.height)) WarnAndTerminate("suit height", GetClassNameA(), "astronaut");
+			if (!oapiReadItem_float(cfg, "SuitHeight", suitHeight)) WarnAndTerminate("suit height", GetClassNameA(), "astronaut");
 
 			if (!oapiReadItem_float(cfg, "BodyHeight", bodyHeight)) WarnAndTerminate("body height", GetClassNameA(), "astronaut");
 
@@ -86,25 +91,34 @@ namespace UACS
 
 			if (!oapiReadItem_vec(cfg, "BodyHoldDir", bodyHoldDir)) WarnAndTerminate("body holding direction", GetClassNameA(), "astronaut");
 
-			for (size_t index{ 1 }; ; ++index)
+			VECTOR3 camOffset{};
+			oapiReadItem_vec(cfg, "CameraOffset", camOffset);
+
+			if (oapiReadItem_vec(cfg, "SpotLightPos", spotInfo.pos) && oapiReadItem_vec(cfg, "SpotLightDir", spotInfo.dir))
 			{
-				VECTOR3 pos, dir;
-				if (!oapiReadItem_vec(cfg, std::format("Headlight{}Pos", index).data(), pos) || !oapiReadItem_vec(cfg, std::format("Headlight{}Dir", index).data(), dir)) break;
+				for (size_t idx{ 1 }; ; ++idx)
+				{
+					VECTOR3 pos;
+					if (!oapiReadItem_vec(cfg, std::format("Beacon{}Pos", idx).data(), pos)) break;
 
-				HeadlightInfo& hlInfo = headlights.emplace_front();
-				hlInfo.spotInfo.pos = hlInfo.beaconInfo.pos = pos;
-				hlInfo.spotInfo.dir = dir;
+					BeaconInfo& beaconInfo = beacons.emplace_front();
+					beaconInfo.pos = pos;
 
-				AddBeacon(&hlInfo.beaconInfo.spec);
+					AddBeacon(&beaconInfo.spec);
+				}
 
-				hlInfo.spotLight = static_cast<SpotLight*>(AddSpotLight(hlInfo.spotInfo.pos, hlInfo.spotInfo.dir, hlInfo.spotInfo.range,
-					hlInfo.spotInfo.att0, hlInfo.spotInfo.att1, hlInfo.spotInfo.att2, hlInfo.spotInfo.umbra, hlInfo.spotInfo.penumbra,
-					hlInfo.spotInfo.diffuse, hlInfo.spotInfo.specular, hlInfo.spotInfo.ambient));
-
-				hlInfo.spotLight->Activate(false);
+				if (!beacons.empty())
+				{
+					spotLight = static_cast<SpotLight*>(AddSpotLight(spotInfo.pos, spotInfo.dir, spotInfo.range,
+						spotInfo.att0, spotInfo.att1, spotInfo.att2, spotInfo.umbra, spotInfo.penumbra,
+						spotInfo.diffuse, spotInfo.specular, spotInfo.ambient));
+					spotLight->Activate(false);
+				}
 			}
 
-			std::array<TOUCHDOWNVTX, 13> tdVtx
+			astrInfo.height = suitHeight;
+
+			tdVtx =
 			{ {
 			{ { 0,        -astrInfo.height,   0.1858 },   1.3e4, 2.7e3, 3, 3},
 			{ { -0.178,   -astrInfo.height,  -0.1305 },   1.3e4, 2.7e3, 3, 3},
@@ -127,6 +141,18 @@ namespace UACS
 			} };
 
 			SetTouchdownPoints(tdVtx.data(), tdVtx.size());
+
+			if (enableCockpit)
+			{
+				cockpitMesh = AddMesh("UACS/AstronautCockpit", &camOffset);
+				SetMeshVisibilityMode(cockpitMesh, MESHVIS_NEVER);
+
+				static UINT VisorGrp[1] = { 2 };
+				static MGROUP_ROTATE VisorRot(cockpitMesh, VisorGrp, 1, { 0, -0.03, -0.01 }, { 1, 0, 0 }, float(-PI05));
+
+				visorAnim.id = CreateAnimation(0);
+				AddAnimationComponent(visorAnim.id, 0, 1, &VisorRot);
+			}
 		}
 
 		void Astronaut::clbkLoadStateEx(FILEHANDLE scn, void* status)
@@ -148,11 +174,15 @@ namespace UACS
 
 					else if (data == "ALIVE") ss >> astrInfo.alive;
 
-					else if (data == "SUIT_ON") ss >> suitOn;
+					else if (data == "SUIT_ON") { ss >> suitOn; suitRead = true; }
+
+					else if (enableCockpit && data == "VISOR_STATE") ss >> visorAnim.state;
+
+					else if (enableCockpit && data == "VISOR_PROC") { ss >> visorAnim.proc; SetAnimation(visorAnim.id, visorAnim.proc); }
 
 					else if (data == "HUD_MODE") ss >> hudInfo.mode;
 
-					else if (!headlights.empty() && data == "HEADLIGHT") { bool active; ss >> active; SetHeadlight(active); }
+					else if (spotLight && data == "HEADLIGHT") { bool active; ss >> active; SetHeadlight(active); }
 
 					else if (!mdlAPI.ParseScenarioLine(line)) ParseScenarioLineEx(line, status);
 				}
@@ -172,8 +202,15 @@ namespace UACS
 
 			oapiWriteScenario_int(scn, "ALIVE", astrInfo.alive);
 			oapiWriteScenario_int(scn, "SUIT_ON", suitOn);
+
+			if (enableCockpit)
+			{
+				oapiWriteScenario_int(scn, "VISOR_STATE", visorAnim.state);
+				oapiWriteScenario_float(scn, "VISOR_PROC", visorAnim.proc);
+			}
+
 			oapiWriteScenario_int(scn, "HUD_MODE", hudInfo.mode);
-			if (!headlights.empty()) oapiWriteScenario_int(scn, "HEADLIGHT", headlights.front().beaconInfo.spec.active);
+			if (spotLight) oapiWriteScenario_int(scn, "HEADLIGHT", spotLight->IsActive());
 		}
 
 		void Astronaut::clbkPostCreation()
@@ -184,11 +221,12 @@ namespace UACS
 			slotInfo.holdDir = suitHoldDir;
 			vslCargoInfo.slots.emplace_back(slotInfo);
 
+			if (!suitRead) suitOn = !InBreathable();
 			SetSuit(suitOn, false);
 
 			mdlAPI.clbkPostCreation();
 
-			if (!astrInfo.alive) Kill();
+			if (!astrInfo.alive) Kill(GetFlightStatus());
 		}
 
 		bool Astronaut::clbkSetAstrInfo(const UACS::AstrInfo& astrInfo)
@@ -508,10 +546,6 @@ namespace UACS
 						hudInfo.message = "Error: No cargo grappled.";
 						break;
 
-					case UACS::RLES_NO_EMPTY_POS:
-						hudInfo.message = "Error: No empty position nearby.";
-						break;
-
 					case UACS::RLES_FAIL:
 						hudInfo.message = "Error: Release failed.";
 						break;
@@ -630,8 +664,12 @@ namespace UACS
 
 			switch (key)
 			{
-			case OAPI_KEY_L:
-				if (!headlights.empty() && suitOn) SetHeadlight(!headlights.front().beaconInfo.spec.active);
+			case OAPI_KEY_M:
+				hudInfo.mode < 6 ? ++hudInfo.mode : hudInfo.mode = 0;
+
+				hudInfo.vslIdx = 0;
+				hudInfo.hVessel = nullptr;
+				hudInfo.vslInfo = HudInfo::VesselInfo();
 				return 1;
 
 			case OAPI_KEY_S:
@@ -651,12 +689,16 @@ namespace UACS
 
 				return 1;
 
-			case OAPI_KEY_M:
-				hudInfo.mode < 6 ? ++hudInfo.mode : hudInfo.mode = 0;
+			case OAPI_KEY_V:
+				if (enableCockpit && suitOn)
+				{
+					if (visorAnim.proc) visorAnim.state = -1;
+					else visorAnim.state = 1;
+				}
+				return 1;
 
-				hudInfo.vslIdx = 0;
-				hudInfo.hVessel = nullptr;
-				hudInfo.vslInfo = HudInfo::VesselInfo();
+			case OAPI_KEY_L:
+				if (suitOn && spotLight) SetHeadlight(!spotLight->IsActive());
 				return 1;
 
 			default:
@@ -697,9 +739,15 @@ namespace UACS
 
 		void Astronaut::clbkPreStep(double simt, double simdt, double mjd)
 		{
-			if (!astrInfo.alive) { SetAttitudeMode(RCS_NONE); return; }
+			if (astrInfo.alive) SetOxygenConsumption(simdt);
 
-			SetOxygenConsumption(simdt);
+			if (!astrInfo.alive) 
+			{
+				SetAttitudeMode(RCS_NONE);
+				if (!GetFlightStatus()) SetLandedStatus();
+
+				return;
+			}
 
 			if (keyDown) keyDown = false;
 
@@ -730,19 +778,21 @@ namespace UACS
 
 			if (totalRunDist && lonSpeed.value <= 1.55) totalRunDist = max(totalRunDist - (5 * simdt), 0);
 
+			if (enableCockpit && visorAnim.state)
+			{
+				visorAnim.proc += visorAnim.state * simdt * 2;
+
+				if (visorAnim.proc >= 1) { visorAnim.proc = 1; visorAnim.state = 0; }
+				else if (visorAnim.proc <= 0) { visorAnim.proc = 0; visorAnim.state = 0; }
+
+				SetAnimation(visorAnim.id, visorAnim.proc);
+			}
+
 			if (hudInfo.timer < 5) hudInfo.timer += simdt;
 		}
 
 		bool Astronaut::clbkDrawHUD(int mode, const HUDPAINTSPEC* hps, oapi::Sketchpad* skp)
 		{
-			int x = HIWORD(skp->GetCharSize());
-			hudInfo.rightX = hps->W - x;
-			int y = hudInfo.startY = int(0.212 * hps->H);
-
-			hudInfo.space = LOWORD(skp->GetCharSize());
-			hudInfo.smallSpace = int(0.5 * hudInfo.space);
-			hudInfo.largeSpace = int(1.5 * hudInfo.space);
-
 			if (!astrInfo.alive)
 			{
 				skp->SetTextColor(0x0000ff);
@@ -753,7 +803,13 @@ namespace UACS
 				return true;
 			}
 
-			VESSEL4::clbkDrawHUD(mode, hps, skp);
+			int x = HIWORD(skp->GetCharSize());
+			hudInfo.rightX = hps->W - x;
+			int y = hudInfo.startY = int(0.212 * hps->H);
+
+			hudInfo.space = LOWORD(skp->GetCharSize());
+			hudInfo.smallSpace = int(0.5 * hudInfo.space);
+			hudInfo.largeSpace = int(1.5 * hudInfo.space);
 
 			if (hudInfo.timer < 5)
 			{
@@ -824,20 +880,20 @@ namespace UACS
 
 			THRUSTER_HANDLE thRCS[14], thGroup[4];
 
-			thRCS[0] = CreateThruster(_V(1.23, 0, 1.23), _V(0, 1, 0), 1, hFuel, 1e3);
-			thRCS[1] = CreateThruster(_V(1.23, 0, 1.23), _V(0, -1, 0), 1, hFuel, 1e3);
-			thRCS[2] = CreateThruster(_V(-1.23, 0, 1.23), _V(0, 1, 0), 1, hFuel, 1e3);
-			thRCS[3] = CreateThruster(_V(-1.23, 0, 1.23), _V(0, -1, 0), 1, hFuel, 1e3);
-			thRCS[4] = CreateThruster(_V(1.23, 0, -1.23), _V(0, 1, 0), 1, hFuel, 1e3);
-			thRCS[5] = CreateThruster(_V(1.23, 0, -1.23), _V(0, -1, 0), 1, hFuel, 1e3);
-			thRCS[6] = CreateThruster(_V(-1.23, 0, -1.23), _V(0, 1, 0), 1, hFuel, 1e3);
-			thRCS[7] = CreateThruster(_V(-1.23, 0, -1.23), _V(0, -1, 0), 1, hFuel, 1e3);
-			thRCS[8] = CreateThruster(_V(1.23, 0, 1.23), _V(-1, 0, 0), 1, hFuel, 1e3);
-			thRCS[9] = CreateThruster(_V(-1.23, 0, 1.23), _V(1, 0, 0), 1, hFuel, 1e3);
-			thRCS[10] = CreateThruster(_V(1.23, 0, -1.23), _V(-1, 0, 0), 1, hFuel, 1e3);
-			thRCS[11] = CreateThruster(_V(-1.23, 0, -1.23), _V(1, 0, 0), 1, hFuel, 1e3);
-			thRCS[12] = CreateThruster(_V(0, 0, -1.23), _V(0, 0, 1), 1, hFuel, 1e3);
-			thRCS[13] = CreateThruster(_V(0, 0, 1.23), _V(0, 0, -1), 1, hFuel, 1e3);
+			thRCS[0] = CreateThruster({ 1.23, 0, 1.23 }, { 0, 1, 0 }, 1, hFuel, 1e3);
+			thRCS[1] = CreateThruster({ 1.23, 0, 1.23 }, { 0, -1, 0 }, 1, hFuel, 1e3);
+			thRCS[2] = CreateThruster({ -1.23, 0, 1.23 }, { 0, 1, 0 }, 1, hFuel, 1e3);
+			thRCS[3] = CreateThruster({ -1.23, 0, 1.23 }, { 0, -1, 0 }, 1, hFuel, 1e3);
+			thRCS[4] = CreateThruster({ 1.23, 0, -1.23 }, { 0, 1, 0 }, 1, hFuel, 1e3);
+			thRCS[5] = CreateThruster({ 1.23, 0, -1.23 }, { 0, -1, 0 }, 1, hFuel, 1e3);
+			thRCS[6] = CreateThruster({ -1.23, 0, -1.23 }, { 0, 1, 0 }, 1, hFuel, 1e3);
+			thRCS[7] = CreateThruster({ -1.23, 0, -1.23 }, { 0, -1, 0 }, 1, hFuel, 1e3);
+			thRCS[8] = CreateThruster({ 1.23, 0, 1.23 }, { -1, 0, 0 }, 1, hFuel, 1e3);
+			thRCS[9] = CreateThruster({ -1.23, 0, 1.23 }, { 1, 0, 0 }, 1, hFuel, 1e3);
+			thRCS[10] = CreateThruster({ 1.23, 0, -1.23 }, { -1, 0, 0 }, 1, hFuel, 1e3);
+			thRCS[11] = CreateThruster({ -1.23, 0, -1.23 }, { 1, 0, 0 }, 1, hFuel, 1e3);
+			thRCS[12] = CreateThruster({ 0, 0, -1.23 }, { 0, 0, 1 }, 1, hFuel, 1e3);
+			thRCS[13] = CreateThruster({ 0, 0, 1.23 }, { 0, 0, -1 }, 1, hFuel, 1e3);
 
 			thGroup[0] = thRCS[0];
 			thGroup[1] = thRCS[2];
@@ -919,10 +975,10 @@ namespace UACS
 					astrInfo.oxyLvl = 0;
 
 					if (InBreathable()) { mdlAPI.ReleaseCargo(0); SetSuit(false, false); }
-					else Kill();
+					else Kill(GetFlightStatus());
 				}
 			}
-			else if (!InBreathable()) Kill();
+			else if (!InBreathable()) Kill(GetFlightStatus());
 		}
 
 		void Astronaut::SetLandedStatus()
@@ -933,11 +989,15 @@ namespace UACS
 
 				if (length(angAcc) < 0.5)
 				{
-					VESSELSTATUS2 status = GetVesselStatus(this);
-					status.status = 1;
+					if (astrInfo.alive)
+					{
+						VESSELSTATUS2 status = GetVesselStatus(this);
+						status.status = 1;
 
-					SetGroundRotation(status, astrInfo.height);
-					DefSetStateEx(&status);
+						SetGroundRotation(status, astrInfo.height);
+						DefSetStateEx(&status);
+					}
+					else Kill(true);
 				}
 			}
 		}
@@ -994,7 +1054,7 @@ namespace UACS
 
 			else if (latSpeed.value) SetLngLatHdg(latSpeed.value * simdt, PI05, status);
 
-			SetGroundRotation(status, suitOn ? astrInfo.height : bodyHeight);
+			SetGroundRotation(status, astrInfo.height);
 
 			DefSetStateEx(&status);
 		}
@@ -1075,11 +1135,8 @@ namespace UACS
 
 		void Astronaut::SetHeadlight(bool active)
 		{
-			for (auto& hlInfo : headlights)
-			{
-				hlInfo.beaconInfo.spec.active = active;
-				hlInfo.spotLight->Activate(active);
-			}
+			spotLight->Activate(active);
+			for (auto& beaconInfo : beacons) beaconInfo.spec.active = active;
 		}
 
 		void Astronaut::SetSuit(bool on, bool checkBreath)
@@ -1087,13 +1144,18 @@ namespace UACS
 			if (on)
 			{
 				SetEmptyMass(suitMass + astrInfo.mass);
+				astrInfo.height = suitHeight;
 
 				auto& slotInfo = vslCargoInfo.slots.front();
 				slotInfo.hAttach = GetAttachmentHandle(false, 0);
 				slotInfo.holdDir = suitHoldDir;
 
-				SetMeshVisibilityMode(suitMesh, MESHVIS_ALWAYS);
+				VECTOR3 dir, rot;
+				GetAttachmentParams(slotInfo.hAttach, slotPos, dir, rot);
+
+				SetMeshVisibilityMode(suitMesh, !enableCockpit && showMeshInCockpit ? MESHVIS_ALWAYS : MESHVIS_EXTERNAL);
 				SetMeshVisibilityMode(bodyMesh, MESHVIS_NEVER);
+				if (enableCockpit) SetMeshVisibilityMode(cockpitMesh, MESHVIS_COCKPIT);
 
 				suitOn = true;
 			}
@@ -1102,26 +1164,59 @@ namespace UACS
 				if (checkBreath && !InBreathable()) { hudInfo.message = "Error: Outside air not breathable."; hudInfo.timer = 0; return; }
 
 				SetEmptyMass(astrInfo.mass);
+				astrInfo.height = bodyHeight;
 
 				auto& slotInfo = vslCargoInfo.slots.front();
 				slotInfo.hAttach = GetAttachmentHandle(false, 1);
 				slotInfo.holdDir = bodyHoldDir;
 
-				if (!headlights.empty()) SetHeadlight(false);
-				SetMeshVisibilityMode(suitMesh, MESHVIS_NEVER);
-				SetMeshVisibilityMode(bodyMesh, MESHVIS_ALWAYS);
+				VECTOR3 dir, rot;
+				GetAttachmentParams(slotInfo.hAttach, slotPos, dir, rot);
 
+				SetMeshVisibilityMode(suitMesh, MESHVIS_NEVER);
+				SetMeshVisibilityMode(bodyMesh, showMeshInCockpit ? MESHVIS_ALWAYS : MESHVIS_EXTERNAL);
+				if (enableCockpit) SetMeshVisibilityMode(cockpitMesh, MESHVIS_NEVER);
+
+				if (spotLight) SetHeadlight(false);
 				suitOn = false;
 			}
 
-			if (GetFlightStatus()) SetGroundMovement(0);
+			tdVtx[0].pos = { 0, -astrInfo.height, 0.1858 };
+			tdVtx[1].pos = { -0.178, -astrInfo.height, -0.1305 };
+			tdVtx[2].pos = { 0.178, -astrInfo.height, -0.1305 };
+			SetTouchdownPoints(tdVtx.data(), tdVtx.size());
+
+			if (GetFlightStatus())
+			{
+				VESSELSTATUS2 status = GetVesselStatus(this);
+				SetGroundRotation(status, astrInfo.height);
+				DefSetStateEx(&status);
+			}
 		}
 
-		void Astronaut::Kill()
+		void Astronaut::Kill(bool isLanded)
 		{
-			if (!headlights.empty()) SetHeadlight(false);
+			if (spotLight) SetHeadlight(false);
 
 			astrInfo.alive = false;
+
+			tdVtx[0].pos = { 0, 0.65, 0.15 };
+			tdVtx[1].pos = { -0.18, -astrInfo.height, 0.15 };
+			tdVtx[2].pos = { 0.18, -astrInfo.height, 0.15 };
+			SetTouchdownPoints(tdVtx.data(), tdVtx.size());
+
+			if (isLanded)
+			{
+				VESSELSTATUS2 status = GetVesselStatus(this);
+				status.status = 1;
+
+				const VECTOR3 frontPos = { 0, 0.15, 0.65 };
+				const VECTOR3 rightPos = { -0.18, 0, -astrInfo.height };
+				const VECTOR3 leftPos = { 0.18, 0, -astrInfo.height };
+
+				SetGroundRotation(status, frontPos, rightPos, leftPos, 0, 0, false, 0);
+				DefSetStateEx(&status);
+			}
 		}
 
 		void Astronaut::DrawNearHUD(int x, int y, oapi::Sketchpad* skp)
@@ -1427,14 +1522,14 @@ namespace UACS
 					hudInfo.hVessel = hudInfo.cargoMap.begin()->second;
 				}
 
-				const auto cargoInfo = mdlAPI.GetCargoInfoByIndex(hudInfo.vslIdx);
+				auto cargoInfo = mdlAPI.GetCargoInfoByIndex(hudInfo.vslIdx);
+
 				DrawCargoInfo(x, y, skp, cargoInfo, true);
 				y += hudInfo.space;
 
-				VECTOR3 relPos;
-				oapiGetGlobalPos(hudInfo.hVessel, &relPos);
-				Global2Local(relPos, relPos);
-				DrawVslInfo(x, y, skp, relPos);
+				oapiLocalToGlobal(cargoInfo.handle, &cargoInfo.attachPos, &cargoInfo.attachPos);
+				Global2Local(cargoInfo.attachPos, cargoInfo.attachPos);
+				DrawVslInfo(x, y, skp, cargoInfo.attachPos - slotPos);
 
 				cargoRes = cargoInfo.resource.has_value();
 			}
@@ -1464,13 +1559,15 @@ namespace UACS
 			skp->Text(x, y, "General shortcuts", 17);
 			y += hudInfo.space;
 
-			skp->Text(x, y, "Alt + M: Cycle between custom HUD modes", 39);
+			skp->Text(x, y, "Alt + M: Cycle custom HUD modes", 31);
 			y += hudInfo.space;
 
 			skp->Text(x, y, "Alt + S: Toggle suit", 20);
 			y += hudInfo.space;
 
-			if (!headlights.empty()) { skp->Text(x, y, "Alt + L: Toggle Headlight", 25); y += hudInfo.space; }
+			if (enableCockpit) { skp->Text(x, y, "Alt + V: Toggle visor", 21); y += hudInfo.space; }
+
+			if (spotLight) { skp->Text(x, y, "Alt + L: Toggle headlight", 25); y += hudInfo.space; }
 			y += hudInfo.smallSpace;
 
 			skp->Text(x, y, "(Ctrl) Numpad 8/2: Move forward/backward (slowly)", 49);
@@ -1576,8 +1673,6 @@ namespace UACS
 
 		void Astronaut::DrawVslInfo(int x, int& y, oapi::Sketchpad* skp, VECTOR3 relPos)
 		{
-			if (GetFlightStatus()) relPos.y = 0;
-
 			buffer = std::format("Distance: {:.1f}m", length(relPos));
 			skp->Text(x, y, buffer.c_str(), buffer.size());
 			y += hudInfo.space;
