@@ -23,12 +23,12 @@ namespace UACS
 			if (hConfig)
 			{
 				if (!oapiReadItem_bool(hConfig, "DisableFocus", disableFocus))
-					oapiWriteLog("UACS cargo warning: Couldn't read DisableFocus setting, will use default value (TRUE)");
+					oapiWriteLog("UACS warning: Couldn't read DisableFocus option from config file, will use default value (TRUE)");
 
 				oapiCloseFile(hConfig, FILE_IN_ZEROONFAIL);
 			}
 
-			else oapiWriteLog("UACS cargo warning: Couldn't load config file, will use default config");
+			else oapiWriteLog("UACS warning: Couldn't load config file, will use default config");
 		}
 
 		Cargo::Cargo(OBJHANDLE hVessel, int fModel) : UACS::Cargo(hVessel, fModel) { if (!configLoaded) LoadConfig(); }
@@ -37,15 +37,15 @@ namespace UACS
 		{
 			char buffer[512];
 
-			if (!oapiReadItem_string(cfg, "PackedMesh", buffer)) WarnAndTerminate("mesh", GetClassNameA(), "cargo");
+			if (!oapiReadItem_string(cfg, "PackedMesh", buffer)) LogTerminate("PackedMesh", GetClassNameA());
 			packedMesh = buffer;
 
-			if (!oapiReadItem_float(cfg, "PayloadMass", payloadMass)) WarnAndTerminate("payload mass", GetClassNameA(), "cargo");
+			if (!oapiReadItem_float(cfg, "PayloadMass", payloadMass)) LogTerminate("PayloadMass", GetClassNameA());
 
-			if (!oapiReadItem_float(cfg, "ContainerMass", contMass)) WarnAndTerminate("container mass", GetClassNameA(), "cargo");
+			if (!oapiReadItem_float(cfg, "ContainerMass", contMass)) LogTerminate("ContainerMass", GetClassNameA());
 
 			int type;
-			if (!oapiReadItem_int(cfg, "CargoType", type)) WarnAndTerminate("type", GetClassNameA(), "cargo");
+			if (!oapiReadItem_int(cfg, "CargoType", type)) LogTerminate("CargoType", GetClassNameA());
 			cargoInfo.type = UACS::CargoType(type);
 
 			if (oapiReadItem_string(cfg, "CargoResource", buffer)) { cargoInfo.resource = buffer; CreatePropellantResource(payloadMass); }
@@ -55,7 +55,7 @@ namespace UACS
 			case UACS::UNPACKABLE:
 				oapiReadItem_bool(cfg, "UnpackOnly", cargoInfo.unpackOnly);
 
-				if (!oapiReadItem_int(cfg, "UnpackingType", unpackType)) WarnAndTerminate("unpacking type", GetClassNameA(), "cargo");
+				if (!oapiReadItem_int(cfg, "UnpackingType", unpackType)) LogTerminate("UnpackingType", GetClassNameA());
 				if (unpackType == UnpackType::VESSEL) cargoInfo.unpackOnly = true;
 
 				oapiReadItem_int(cfg, "UnpackingMode", unpackMode);
@@ -63,21 +63,21 @@ namespace UACS
 				if (oapiReadItem_int(cfg, "UnpackedCount", unpackedCount)) cargoInfo.unpackOnly = true;
 
 				if (unpackMode == UnpackMode::DELAYED && !oapiReadItem_int(cfg, "UnpackingDelay", unpackDelay))
-					WarnAndTerminate("unpacking delay", GetClassNameA(), "cargo"); 
+					LogTerminate("UnpackingDelay", GetClassNameA()); 
 
 				if (!oapiReadItem_float(cfg, "UnpackedHeight", unpackFrontPos.y))
 				{
 					if (!oapiReadItem_vec(cfg, "UnpackedFrontPos", unpackFrontPos) || !oapiReadItem_vec(cfg, "UnpackedRightPos", unpackRightPos) ||
-						!oapiReadItem_vec(cfg, "UnpackedLeftPos", unpackLeftPos)) WarnAndTerminate("unpacked height", GetClassNameA(), "cargo");
+						!oapiReadItem_vec(cfg, "UnpackedLeftPos", unpackLeftPos)) LogTerminate("UnpackedHeight", GetClassNameA());
 				}
 
 				switch (unpackType)
 				{
 				case UnpackType::MODULE:
-					if (!oapiReadItem_string(cfg, "UnpackedMesh", buffer)) WarnAndTerminate("unpacked mesh", GetClassNameA(), "cargo");
+					if (!oapiReadItem_string(cfg, "UnpackedMesh", buffer)) LogTerminate("UnpackedMesh", GetClassNameA());
 					unpackedMesh = buffer;
 
-					if (!oapiReadItem_float(cfg, "UnpackedSize", unpackSize)) WarnAndTerminate("unpacked size", GetClassNameA(), "cargo");
+					if (!oapiReadItem_float(cfg, "UnpackedSize", unpackSize)) LogTerminate("UnpackedSize", GetClassNameA());
 
 					oapiReadItem_vec(cfg, "UnpackedAttachPos", unpackAttachPos);
 
@@ -92,10 +92,10 @@ namespace UACS
 					break;
 
 				case UnpackType::VESSEL:
-					if (!oapiReadItem_string(cfg, "UnpackedVesselName", buffer)) WarnAndTerminate("unpacked vessel name", GetClassNameA(), "cargo");
+					if (!oapiReadItem_string(cfg, "UnpackedVesselName", buffer)) LogTerminate("UnpackedVesselName", GetClassNameA());
 					unpackVslName = buffer;
 
-					if (!oapiReadItem_string(cfg, "UnpackedVesselModule", buffer)) WarnAndTerminate("unpacked vessel module", GetClassNameA(), "cargo");
+					if (!oapiReadItem_string(cfg, "UnpackedVesselModule", buffer)) LogTerminate("UnpackedVesselModule", GetClassNameA());
 					unpackVslModule = buffer;
 
 					break;

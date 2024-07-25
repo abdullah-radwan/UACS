@@ -25,7 +25,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Carrier", "Vessels\Carrier\
 		{72037F39-DA32-431D-AF5D-C3D7E6A64F4E} = {72037F39-DA32-431D-AF5D-C3D7E6A64F4E}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Lamp Cargo", "Vessels\LampCargo\LampCargo.vcxproj", "{31D737A3-5605-4FFA-8363-0DC24439568A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LampsCargo", "Vessels\LampsCargo\LampsCargo.vcxproj", "{31D737A3-5605-4FFA-8363-0DC24439568A}"
 	ProjectSection(ProjectDependencies) = postProject
 		{5ACEAD98-A8BF-421E-BA87-293A25D0B1B7} = {5ACEAD98-A8BF-421E-BA87-293A25D0B1B7}
 	EndProjectSection

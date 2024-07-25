@@ -5,9 +5,9 @@
 
 namespace UACS
 {
-	inline void WarnAndTerminate(const char* warning, const char* className, const char* type)
+	inline void LogTerminate(const char* warning, const char* className)
 	{
-		oapiWriteLogV("UACS fatal error: The %s of %s %s is not specified", warning, className, type);
+		oapiWriteLogV("UACS fatal error: Option %s of %s is missing", warning, className);
 
 		std::terminate();
 	}

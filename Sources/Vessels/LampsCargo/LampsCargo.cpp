@@ -1,24 +1,24 @@
-#include "LampCargo.h"
+#include "LampsCargo.h"
 #include "../../BaseCommon.h"
 
 #include <sstream>
 #include <array>
 
-DLLCLBK VESSEL* ovcInit(OBJHANDLE hvessel, int flightmodel) { return new UACS::Vessel::LampCargo(hvessel, flightmodel); }
+DLLCLBK VESSEL* ovcInit(OBJHANDLE hvessel, int flightmodel) { return new UACS::Vessel::LampsCargo(hvessel, flightmodel); }
 
-DLLCLBK void ovcExit(VESSEL* vessel) { if (vessel) delete static_cast<UACS::Vessel::LampCargo*>(vessel); }
+DLLCLBK void ovcExit(VESSEL* vessel) { if (vessel) delete static_cast<UACS::Vessel::LampsCargo*>(vessel); }
 
 namespace UACS
 {
 	namespace Vessel
 	{
-		LampCargo::LampCargo(OBJHANDLE hVessel, int flightmodel) : UACS::Cargo(hVessel, flightmodel)
+		LampsCargo::LampsCargo(OBJHANDLE hVessel, int flightmodel) : UACS::Cargo(hVessel, flightmodel)
 		{
 			cargoInfo.type = UACS::UNPACKABLE;
 			cargoInfo.unpackOnly = true;
 		}
 
-		void LampCargo::clbkSetClassCaps(FILEHANDLE cfg)
+		void LampsCargo::clbkSetClassCaps(FILEHANDLE cfg)
 		{
 			SetEnableFocus(false);
 
@@ -31,7 +31,7 @@ namespace UACS
 			SetPackedCaps();
 		}
 
-		void LampCargo::clbkLoadStateEx(FILEHANDLE scn, void* status)
+		void LampsCargo::clbkLoadStateEx(FILEHANDLE scn, void* status)
 		{
 			char* line;
 
@@ -49,7 +49,7 @@ namespace UACS
 			}
 		}
 
-		void LampCargo::clbkPreStep(double simt, double simdt, double mjd)
+		void LampsCargo::clbkPreStep(double simt, double simdt, double mjd)
 		{
 			if (!GetFlightStatus() && GroundContact())
 			{
@@ -66,18 +66,18 @@ namespace UACS
 			}
 		}
 
-		void LampCargo::clbkSaveState(FILEHANDLE scn)
+		void LampsCargo::clbkSaveState(FILEHANDLE scn)
 		{
 			VESSEL4::clbkSaveState(scn);
 
 			oapiWriteScenario_int(scn, "UNPACKED", cargoInfo.unpacked);
 		}
 
-		const UACS::Cargo::CargoInfo* LampCargo::clbkGetCargoInfo() { return &cargoInfo; }
+		const UACS::Cargo::CargoInfo* LampsCargo::clbkGetCargoInfo() { return &cargoInfo; }
 
-		bool LampCargo::clbkUnpackCargo() { return UnpackCargo(); }
+		bool LampsCargo::clbkUnpackCargo() { return UnpackCargo(); }
 
-		bool LampCargo::UnpackCargo(bool firstUnpack)
+		bool LampsCargo::UnpackCargo(bool firstUnpack)
 		{
 			cargoInfo.unpacked = true;
 
@@ -94,7 +94,7 @@ namespace UACS
 
 				OBJHANDLE hCargo = oapiCreateVesselEx(spawnName.c_str(), GetClassNameA(), &status);
 
-				if (!hCargo || !static_cast<LampCargo*>(oapiGetVesselInterface(hCargo))->UnpackCargo(false)) return false;
+				if (!hCargo || !static_cast<LampsCargo*>(oapiGetVesselInterface(hCargo))->UnpackCargo(false)) return false;
 			}
 
 			oapiDeleteVessel(GetHandle());
@@ -102,7 +102,7 @@ namespace UACS
 			return true;
 		}
 
-		void LampCargo::SetPackedCaps()
+		void LampsCargo::SetPackedCaps()
 		{
 			if (cargoInfo.unpacked) return;
 
@@ -141,7 +141,7 @@ namespace UACS
 			SetTouchdownPoints(tdVtx.data(), tdVtx.size());
 		}
 
-		void LampCargo::SetUnpackedCaps(bool init)
+		void LampsCargo::SetUnpackedCaps(bool init)
 		{
 			VESSELSTATUS2 status;
 

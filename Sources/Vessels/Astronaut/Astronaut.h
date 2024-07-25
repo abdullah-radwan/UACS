@@ -55,6 +55,9 @@ namespace UACS
 			bool suitRead{};
 			double consumptionRate{ 1 };
 
+			double avgForce{};
+			size_t forceStep{};
+
 			UACS::Module mdlAPI;
 			UACS::VslCargoInfo vslCargoInfo;
 			SpotLight* spotLight1{};

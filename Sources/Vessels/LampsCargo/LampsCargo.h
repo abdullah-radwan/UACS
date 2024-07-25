@@ -5,10 +5,10 @@ namespace UACS
 {
 	namespace Vessel
 	{
-		class LampCargo : public UACS::Cargo
+		class LampsCargo : public UACS::Cargo
 		{
 		public:
-			LampCargo(OBJHANDLE hVessel, int flightmodel);
+			LampsCargo(OBJHANDLE hVessel, int flightmodel);
 
 			void clbkSetClassCaps(FILEHANDLE cfg) override;
 			void clbkLoadStateEx(FILEHANDLE scn, void* status) override;

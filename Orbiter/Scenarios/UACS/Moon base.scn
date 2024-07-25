@@ -79,7 +79,7 @@ SolarPanel4:UACS\Cargoes\SolarPanels
   AFCMODE 7
   UNPACKED 1
 END
-Lamp1:UACS\Cargoes\Lamp
+Lamp1:UACS\Cargoes\Lamps
   STATUS Landed Moon
   POS -16.4526880 22.1023750
   HEADING 270.00
@@ -88,7 +88,7 @@ Lamp1:UACS\Cargoes\Lamp
   AFCMODE 7
   UNPACKED 1
 END
-Lamp2:UACS\Cargoes\Lamp
+Lamp2:UACS\Cargoes\Lamps
   STATUS Landed Moon
   POS -16.4532780 22.1029250
   HEADING 180.01
@@ -97,7 +97,7 @@ Lamp2:UACS\Cargoes\Lamp
   AFCMODE 7
   UNPACKED 1
 END
-Lamp3:UACS\Cargoes\Lamp
+Lamp3:UACS\Cargoes\Lamps
   STATUS Landed Moon
   POS -16.4538580 22.1023650
   HEADING 90.01
@@ -106,7 +106,7 @@ Lamp3:UACS\Cargoes\Lamp
   AFCMODE 7
   UNPACKED 1
 END
-Lamp4:UACS\Cargoes\Lamp
+Lamp4:UACS\Cargoes\Lamps
   STATUS Landed Moon
   POS -16.4532680 22.1018350
   HEADING 0.00
