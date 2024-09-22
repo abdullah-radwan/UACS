@@ -245,15 +245,15 @@ namespace UACS
 				{
 				case UACS::ASTR_INGRS:
 				{
-					auto& astrInfo = *(vslAstrInfo.stations.at(*static_cast<size_t*>(context)).astrInfo);
-					SetEmptyMass(GetEmptyMass() + astrInfo.mass);
+					auto& astrInfo = vslAstrInfo.stations.at(*static_cast<size_t*>(context)).astrInfo;
+					SetEmptyMass(GetEmptyMass() + astrInfo->mass);
 
 					return 1;
 				}
 				case UACS::ASTR_EGRS:
 				{
-					auto& astrInfo = *(vslAstrInfo.stations.at(*static_cast<size_t*>(context)).astrInfo);
-					SetEmptyMass(GetEmptyMass() - astrInfo.mass);
+					auto& astrInfo = vslAstrInfo.stations.at(*static_cast<size_t*>(context)).astrInfo;
+					SetEmptyMass(GetEmptyMass() - astrInfo->mass);
 
 					return 1;
 				}

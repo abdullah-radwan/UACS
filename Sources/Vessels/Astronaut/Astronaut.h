@@ -150,6 +150,8 @@ namespace UACS
 
 			void SetDefaultValues();
 			void SetValue(ValueInfo& valueInfo, bool setMax, bool setMin, bool setSlow);
+			void CalcForces();
+			void SetVisorAnim(double simdt);
 
 			void SetHeadlight(bool active);
 			void SetSuit(bool on, bool checkBreath);

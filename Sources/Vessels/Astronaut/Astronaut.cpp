@@ -58,7 +58,7 @@ namespace UACS
 
 			SetDefaultValues();
 
-			hudInfo.message = std::format("UACS version: {}", GetUACSVersion());
+			hudInfo.message = std::format("UACS version: v{}", GetUACSVersion());
 		}
 
 		Astronaut::~Astronaut() { oapiReleaseFont(hudInfo.deadFont); }
@@ -771,20 +771,7 @@ namespace UACS
 			}
 			else
 			{
-				if (enhancedMovements)
-				{
-					VECTOR3 force;
-					GetForceVector(force);
-
-					avgForce += length(force);
-					++forceStep;
-
-					if (forceStep >= 10)
-					{
-						if ((avgForce / forceStep) > 32e3) Kill(false);
-						avgForce = forceStep = 0;
-					}
-				}
+				if (enhancedMovements) CalcForces();
 
 				SetLandedStatus();
 
@@ -793,15 +780,7 @@ namespace UACS
 
 			if (totalRunDist && lonSpeed.value <= 1.55) totalRunDist = max(totalRunDist - (5 * simdt), 0);
 
-			if (enableCockpit && visorAnim.state)
-			{
-				visorAnim.proc += visorAnim.state * simdt * 2;
-
-				if (visorAnim.proc >= 1) { visorAnim.proc = 1; visorAnim.state = 0; }
-				else if (visorAnim.proc <= 0) { visorAnim.proc = 0; visorAnim.state = 0; }
-
-				SetAnimation(visorAnim.id, visorAnim.proc);
-			}
+			if (enableCockpit && visorAnim.state) SetVisorAnim(simdt);
 
 			if (hudInfo.timer < 5) hudInfo.timer += simdt;
 		}
@@ -1146,6 +1125,31 @@ namespace UACS
 
 				else valueInfo.value = min(valueInfo.value + (valueInfo.returnRate * oapiGetSimStep()), 0);
 			}
+		}
+
+		void Astronaut::CalcForces()
+		{
+			VECTOR3 force;
+			GetForceVector(force);
+
+			avgForce += length(force);
+			++forceStep;
+
+			if (forceStep >= 10)
+			{
+				if ((avgForce / forceStep) > 32e3) Kill(false);
+				avgForce = forceStep = 0;
+			}
+		}
+
+		void Astronaut::SetVisorAnim(double simdt)
+		{
+			visorAnim.proc += visorAnim.state * simdt * 2;
+
+			if (visorAnim.proc >= 1) { visorAnim.proc = 1; visorAnim.state = 0; }
+			else if (visorAnim.proc <= 0) { visorAnim.proc = 0; visorAnim.state = 0; }
+
+			SetAnimation(visorAnim.id, visorAnim.proc);
 		}
 
 		void Astronaut::SetHeadlight(bool active)
